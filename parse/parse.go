@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -36,7 +37,7 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 	// dimension 必须是对象：键为命名空间 ID，值为该维度的备份规则
 	dimensionSaveRule, ok := rootSaveRule["dimension"].(map[string]any)
 	if !ok {
-		return errors.New("(Parse dimension rule) isn't a valid json object - dimension")
+		return errors.New("(Parse dimension rule) dimension is not a valid JSON object")
 	}
 
 	for namespaceID, saveRule := range dimensionSaveRule {
@@ -44,7 +45,7 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 		// 使用函数解析维度的命名空间 ID 并拆解为命名空间和 ID
 		namespaceAndID := strings.FieldsFunc(namespaceID, isKeyWord)
 		if len(namespaceAndID) != 2 {
-			return errors.New("(Verify \"namespaceID\") isn't a valid namespaceID - " + "\"" + namespaceID + "\"")
+			return errors.New("(Verify namespaceID) invalid namespace ID \"" + namespaceID + "\"")
 		}
 
 		namespace, dimensionID := namespaceAndID[0], namespaceAndID[1]
@@ -52,7 +53,7 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 		// 对维度规则对象进行断言，它对应 JSON 文件里命名空间 ID 下的配置
 		saveRule, ok := saveRule.(map[string]any)
 		if !ok {
-			return errors.New("(Parse dimension rule) isn't a valid json object - \"range\"")
+			return errors.New("(Parse dimension rule) rule for \"" + namespaceID + "\" is not a valid JSON object")
 		}
 
 		// range 规则如果存在，则根据 range 规则进行备份
@@ -60,23 +61,23 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 
 			rangeRuleList, ok := saveRule["range"].([]any)
 			if !ok {
-				return errors.New("(Parse range rule) isn't valid json array - \"range\"")
+				return errors.New("(Parse range rule) range is not a valid JSON array")
 			}
 
 			for rangeRuleIndex, rangeRule := range rangeRuleList {
 				rangeRule, ok := rangeRule.(map[string]any)
 				if !ok {
-					return errors.New("(Parse range rule) isn't valid json object - \"range\" - " + strconv.Itoa(rangeRuleIndex))
+					return errors.New("(Parse range rule) range entry at index " + strconv.Itoa(rangeRuleIndex) + " is not a valid JSON object")
 				}
 
 				jsonFrom, ok := rangeRule["from"].([]any)
 				if !ok {
-					return errors.New("(Parse from rule) isn't valid json array - \"from\" - " + strconv.Itoa(rangeRuleIndex))
+					return errors.New("(Parse from rule) from is not a valid JSON array in range entry at index " + strconv.Itoa(rangeRuleIndex))
 				}
 
 				jsonTo, ok := rangeRule["to"].([]any)
 				if !ok {
-					return errors.New("(Parse to rule) isn't valid json array - \"to\" - " + strconv.Itoa(rangeRuleIndex))
+					return errors.New("(Parse to rule) to is not a valid JSON array in range entry at index " + strconv.Itoa(rangeRuleIndex))
 				}
 
 				// 将 JSON 中的坐标从 float64 转换为 int64 并校验长度，为后续坐标遍历做准备
@@ -87,23 +88,23 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 				for _, number := range jsonFrom {
 					jsonFromValue, ok := number.(float64)
 					if !ok {
-						return errors.New("(Verify \"from\" rule) \"from\" rule contains data that isn't a number")
+						return errors.New("(Verify from rule) from contains a value that is not a number")
 					}
 					from = append(from, int64(jsonFromValue))
 				}
 				if len(from) != 2 {
-					return errors.New("(Verify from rule) \"from\" isn't a array of length is 2")
+					return errors.New("(Verify from rule) from must be an array of length 2")
 				}
 
 				for _, number := range jsonTo {
 					jsonToValue, ok := number.(float64)
 					if !ok {
-						return errors.New("(Verify \"to\" rule) \"to\" rule contains data that isn't a number")
+						return errors.New("(Verify to rule) to contains a value that is not a number")
 					}
 					to = append(to, int64(jsonToValue))
 				}
 				if len(to) != 2 {
-					return errors.New("(Verify to rule) \"to\" isn't a array of length is 2")
+					return errors.New("(Verify to rule) to must be an array of length 2")
 				}
 
 				// 遍历区域目录（region/entities/poi），再遍历 from 到 to 之间的 x，y 坐标，逐一保存区域文件
@@ -128,7 +129,7 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 		if saveRule["simple"] != nil {
 			simpleRuleList, ok := saveRule["simple"].([]any)
 			if !ok {
-				return errors.New("(Parse \"simple\" rule) isn't a json array - \"simple\"")
+				return errors.New("(Parse simple rule) simple is not a valid JSON array")
 			}
 
 			// simple 规则：按给定坐标逐一写入三个区域目录中的文件
@@ -138,10 +139,10 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 					// 对规则进行断言，取出 x，y 坐标，判断是否为数组并且长度为2
 					simpleRule, ok := simpleRule.([]any)
 					if !ok {
-						return errors.New("(Verify \"simple\" rule) isn't a json array - \"simple\"")
+						return errors.New("(Verify simple rule) simple entry is not a valid JSON array")
 					}
 					if len(simpleRule) != 2 {
-						return errors.New("(Verify \"simple\" rule) isn't a array that length is 2 - \"simple\" - index " + strconv.Itoa(simpleRuleIndex))
+						return errors.New("(Verify simple rule) simple entry at index " + strconv.Itoa(simpleRuleIndex) + " must be an array of length 2")
 					}
 
 					jsonX, Index1ok := simpleRule[0].(float64)
@@ -149,7 +150,7 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 					jsonY, Index2ok := simpleRule[1].(float64)
 					y := int64(jsonY)
 					if !Index1ok || !Index2ok {
-						return errors.New("(Verify \"simple\" rule) \"simple\" rule contains data that isn't number")
+						return errors.New("(Verify simple rule) simple contains a value that is not a number")
 					}
 					// 压缩包内以存档名作为顶层目录，保证备份可直接还原为存档
 					regionFilePath := formatRegionFilePath(levelDir, namespace, dimensionID, regionDataDir, x, y)
@@ -166,34 +167,46 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 		// 备份维度 data 目录：磁盘路径用于读取，压缩包内路径保留存档名层级，便于直接还原
 		dimensionDataDirPath := path.Join(levelDir, "dimensions", namespace, dimensionID, "data")
 		dimensionDataDirName := path.Join(path.Base(levelDir), "dimensions", namespace, dimensionID, "data")
-		dimensionDataFileSystem := os.DirFS(dimensionDataDirPath)
-		err := fs.WalkDir(dimensionDataFileSystem, ".", func(subFilePath string, d fs.DirEntry, err error) error {
-			// WalkDir 的遍历错误（如该维度没有 data 目录）仅跳过，不中断备份（有意为之）
-			if err == nil {
-				endFilePath := path.Join(dimensionDataDirPath, subFilePath)
-				dataFileName := path.Join(dimensionDataDirName, subFilePath)
-				subFileStat, err := os.Stat(endFilePath)
-				if err == nil {
-					if !subFileStat.IsDir() {
-						err := addFile(dataFileName, endFilePath, zipWriter)
-						if err != nil {
-							record.Error("%v", err)
-						}
-					}
+
+		// 维度数据文件若不存在，跳过，有意为之
+		_, err := os.Stat(dimensionDataDirPath)
+		if err != nil {
+			continue
+		}
+
+		dimensionDataDirSystem := os.DirFS(dimensionDataDirPath)
+		err = fs.WalkDir(dimensionDataDirSystem, ".", func(subFilePath string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return fmt.Errorf("(Open dimension directory) %w", err)
+			}
+
+			endFilePath := path.Join(dimensionDataDirPath, subFilePath)
+			dataFileName := path.Join(dimensionDataDirName, subFilePath)
+			subFileStat, err := os.Stat(endFilePath)
+
+			if err != nil {
+				return fmt.Errorf("(Get data file info) %w", err)
+			}
+
+			if !subFileStat.IsDir() {
+				err := addFile(dataFileName, endFilePath, zipWriter)
+				if err != nil {
+					return fmt.Errorf("(Write file into archive) %w", err)
 				}
 			}
+
 			return nil
 		})
 		if err != nil {
-			return errors.Join(errors.New("(Read directory) error in: "+dimensionDataDirPath), err)
+			return fmt.Errorf("(Read directory) "+dimensionDataDirPath+": %w", err)
 		}
 	}
 	return nil
 }
 
-// SaveCoreDataFile 遍历配置中 file 列表的条目：普通文件直接写入 zip，
 // 目录则递归遍历其中的全部文件一并写入。
-func SaveCoreDataFile(levelDir string, configFile string, zipWriter *zip.Writer, addFile addFile) error {
+// SaveRootDataFile 遍历配置中 file 列表的条目：普通文件直接写入 zip
+func SaveRootDataFile(levelDir string, configFile string, zipWriter *zip.Writer, addFile addFile) error {
 
 	rootRule, err := getRootSaveRule(configFile)
 	if err != nil {
@@ -202,23 +215,25 @@ func SaveCoreDataFile(levelDir string, configFile string, zipWriter *zip.Writer,
 
 	fileList, ok := rootRule["file"].([]any)
 	if !ok {
-		return errors.New("(Parse file rule) is not a valid json object - file")
+		return errors.New("(Parse file rule) file is not a valid JSON array")
 	}
 
 	for _, file := range fileList {
 
 		file, ok := file.(string)
 		if !ok {
-			return errors.New("(Parse file rule) is not a valid json object - file")
+			return errors.New("(Parse file rule) file contains a value that is not a string")
 		}
 
 		filePath := path.Join(levelDir, file)
+
 		// 压缩包内以存档名作为顶层目录，保证备份可直接还原为存档
 		fileName := path.Join(path.Base(levelDir), file)
 		fileStat, err := os.Stat(filePath)
-		// 文件或目录不存在时跳过，不中断备份（有意为之：用户目录可能缺少文件）
+
+		// 文件或目录不存在时报错，中断备份（有意为之：用户应明确目录内容）
 		if err != nil {
-			continue
+			return fmt.Errorf("(Get file info) %w", err)
 		}
 
 		switch fileStat.IsDir() {
@@ -233,23 +248,29 @@ func SaveCoreDataFile(levelDir string, configFile string, zipWriter *zip.Writer,
 			fileSystem := os.DirFS(filePath)
 			err := fs.WalkDir(fileSystem, ".", func(subFilePath string, d fs.DirEntry, err error) error {
 				// 遍历错误（如子目录不可读）仅跳过，不中断备份（有意为之）
-				if err == nil {
-					fullFilePath := path.Join(filePath, subFilePath)
-					fullFileName := path.Join(fileName, subFilePath)
-					subFileStat, err := os.Stat(fullFilePath)
-					if err == nil {
-						if !subFileStat.IsDir() {
-							err := addFile(fullFileName, fullFilePath, zipWriter)
-							if err != nil {
-								record.Error("%v", err)
-							}
-						}
+				if err != nil {
+					return fmt.Errorf("(Open dimension data directory) %w", err)
+				}
+
+				fullFilePath := path.Join(filePath, subFilePath)
+				fullFileName := path.Join(fileName, subFilePath)
+
+				subFileStat, err := os.Stat(fullFilePath)
+				if err != nil {
+					return fmt.Errorf("(Get data file info) %w", err)
+				}
+
+				if !subFileStat.IsDir() {
+					err := addFile(fullFileName, fullFilePath, zipWriter)
+					if err != nil {
+						return fmt.Errorf("(Write file into archive) %w", err)
 					}
 				}
+
 				return nil
 			})
 			if err != nil {
-				return errors.Join(err, errors.New("(Read directory)"+"error in: "+filePath))
+				return fmt.Errorf("(Read directory) "+filePath+": %w", err)
 			}
 		}
 	}
@@ -262,14 +283,14 @@ func getRootSaveRule(configFile string) (map[string]any, error) {
 	// 读取规则文件的内容
 	jsonData, err := os.ReadFile(configFile)
 	if err != nil {
-		return nil, errors.Join(errors.New("(Read config file) unable to read json file: "+configFile), err)
+		return nil, fmt.Errorf("(Read config file) unable to read config file \""+configFile+"\": %w", err)
 	}
 
 	// 将 JSON 内容解析为映射表
 	rootRule := make(map[string]any)
 	err = json.Unmarshal(jsonData, &rootRule)
 	if err != nil {
-		return nil, errors.Join(errors.New("(Parse json data) unable to parse json data: "+configFile), err)
+		return nil, fmt.Errorf("(Parse json data) unable to parse config file \""+configFile+"\": %w", err)
 	}
 
 	return rootRule, nil
