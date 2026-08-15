@@ -18,5 +18,5 @@ func Warn(format string, value ...any) {
 
 // Error 向标准输出打印红色 ERROR 日志
 func Error(format string, value ...any) {
-	fmt.Fprintf(os.Stdout, "[\033[1;31mERROR\033[0m]: "+format+"\n", value...)
+	fmt.Fprintf(os.Stderr, "[\033[1;31mERROR\033[0m]: "+format+"\n", value...)
 }
