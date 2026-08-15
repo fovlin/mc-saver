@@ -1,0 +1,25 @@
+{
+	"dimension":{
+		"minecraft:overworld":{
+			"range":[
+				{ "from":[-1, -1], "to":[1, 1] }
+			]
+		},
+		"minecraft:the_nether":{
+			"range":[
+				{ "from":[-1, -1], "to":[1, 1] }
+			]
+		},
+		"minecraft:the_end":{
+			"range":[
+				{ "from":[-1, -1], "to":[1, 1] }
+			]
+		}
+	},
+	"file":[
+		"level.dat",
+		"data",
+		"datapacks",
+		"players"
+	]
+}
