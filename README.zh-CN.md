@@ -4,8 +4,6 @@
 
 English version: [README.md](README.md)
 
-> 由于仓库出现意外，贡献列表与提交记录丢失，特别感谢 [kavenra](https://github.com/kavenra) 解决了无法使用绝对路径正常备份的 bug，并优化了逻辑。
-
 ## 功能
 
 - **选择性备份** — 只备份你关心的区块，而不是整个世界，压缩包更小、速度更快。
