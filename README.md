@@ -117,7 +117,7 @@ For every selected region of a dimension, the tool collects `r.<x>.<z>.mca` from
 
 A list of files or folders at the world root to include. Files are added directly; folders are traversed recursively.
 
-Files that don't exist are skipped instead of failing the backup: missing region files are reported with a warning, while missing entries in the `file` list are skipped silently.
+Missing region files are reported with a warning and skipped, so sparse dimensions don't abort the backup. Entries in the `file` list are stricter: if a listed file or folder doesn't exist, the backup fails, so make sure every path is actually present (for example, older or freshly generated worlds may not have `datapacks` or `players`).
 
 ## Project layout
 
