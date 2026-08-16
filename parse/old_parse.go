@@ -3,7 +3,6 @@ package parse
 import (
 	"acovia.net/record"
 	"archive/zip"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -13,21 +12,9 @@ import (
 	"strings"
 )
 
-// rootFile 表示每个维度下需要按坐标备份的三个区域文件目录
-var (
-	rootFile = []string{
-		"region",
-		"entities",
-		"poi",
-	}
-)
-
-// addFile 是由调用方注入的回调，负责将单个文件写入 zip 压缩包
-type addFile func(fileName string, filePath string, zipWriter *zip.Writer) error
-
 // SaveDimensionFile 根据配置文件解析各维度的 range/simple 备份规则，
 // 将选中的区域文件与各维度 data 目录下的文件逐一写入 zip 压缩包。
-func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer, addFile addFile) error {
+func SaveOldDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer, addFile addFile) error {
 
 	rootSaveRule, err := getRootSaveRule(configFile)
 	if err != nil {
@@ -50,7 +37,18 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 
 		namespace, dimensionID := namespaceAndID[0], namespaceAndID[1]
 
-		dimensionRootDirPath := path.Join("dimensions", namespace, dimensionID)
+		var dimensionRootDirPath string
+
+		switch namespaceID {
+		case "minecraft:overworld":
+			dimensionRootDirPath = "."
+		case "minecraft:the_nether":
+			dimensionRootDirPath = "DIM-1"
+		case "minecraft:the_end":
+			dimensionRootDirPath = "DIM1"
+		default:
+			dimensionRootDirPath = path.Join("dimensions", namespace, dimensionID)
+		}
 
 		_, err := os.Stat(path.Join(levelDir, dimensionRootDirPath))
 		if err != nil {
@@ -118,9 +116,11 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 				for _, regionDataDir := range rootFile {
 					for x := from[0]; x <= to[0]; x += 1 {
 						for y := from[1]; y <= to[1]; y += 1 {
+							mcaFileName := "r." + strconv.FormatInt(x, 10) + "." + strconv.FormatInt(y, 10) + ".mca"
 							// 压缩包内以存档名作为顶层目录，保证备份可直接还原为存档
-							regionFilePath := formatRegionFilePath(levelDir, dimensionRootDirPath, regionDataDir, x, y)
-							regionFileName := formatRegionFilePath(path.Base(levelDir), dimensionRootDirPath, regionDataDir, x, y)
+							regionFilePath := path.Join(levelDir, dimensionRootDirPath, regionDataDir, mcaFileName)
+							regionFileName := path.Join(path.Base(levelDir), dimensionRootDirPath, regionDataDir, mcaFileName)
+
 							// 单个文件出错只记录日志，不中断整个备份（有意为之）
 							err := addFile(regionFileName, regionFilePath, zipWriter)
 							if err != nil {
@@ -160,10 +160,12 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 						return errors.New("(Verify simple rule) simple contains a value that is not a number")
 					}
 
+					mcaFileName := "r." + strconv.FormatInt(x, 10) + "." + strconv.FormatInt(y, 10) + ".mca"
 					// 压缩包内以存档名作为顶层目录，保证备份可直接还原为存档
-					regionFilePath := formatRegionFilePath(levelDir, dimensionRootDirPath, regionDataDir, x, y)
-					regionFileName := formatRegionFilePath(path.Base(levelDir), dimensionRootDirPath, regionDataDir, x, y)
-					// 出错只记录日志，不中断备份（与 range 规则一致）
+					regionFilePath := path.Join(levelDir, dimensionRootDirPath, regionDataDir, mcaFileName)
+					regionFileName := path.Join(path.Base(levelDir), dimensionRootDirPath, regionDataDir, mcaFileName)
+
+					// 单个文件出错只记录日志，不中断整个备份（有意为之）
 					err := addFile(regionFileName, regionFilePath, zipWriter)
 					if err != nil {
 						record.Error("%v", err)
@@ -173,8 +175,8 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 		}
 
 		// 备份维度 data 目录：磁盘路径用于读取，压缩包内路径保留存档名层级，便于直接还原
-		dimensionDataDirPath := path.Join(levelDir, "dimensions", namespace, dimensionID, "data")
-		dimensionDataDirName := path.Join(path.Base(levelDir), "dimensions", namespace, dimensionID, "data")
+		dimensionDataDirPath := path.Join(levelDir, dimensionRootDirPath, "data")
+		dimensionDataDirName := path.Join(path.Base(levelDir), dimensionRootDirPath, "data")
 
 		// 维度数据文件若不存在，跳过，有意为之
 		_, err = os.Stat(dimensionDataDirPath)
@@ -199,7 +201,6 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 						return fmt.Errorf("(Write file into archive) %w", err)
 					}
 				}
-
 				return nil
 			})
 			if err != nil {
@@ -208,113 +209,4 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 		}
 	}
 	return nil
-}
-
-// 目录则递归遍历其中的全部文件一并写入。
-// SaveRootDataFile 遍历配置中 file 列表的条目：普通文件直接写入 zip
-func SaveRootDataFile(levelDir string, configFile string, zipWriter *zip.Writer, addFile addFile) error {
-
-	rootRule, err := getRootSaveRule(configFile)
-	if err != nil {
-		return err
-	}
-
-	fileList, ok := rootRule["file"].([]any)
-	if !ok {
-		return errors.New("(Parse file rule) file is not a valid JSON array")
-	}
-
-	for _, file := range fileList {
-
-		file, ok := file.(string)
-		if !ok {
-			return errors.New("(Parse file rule) file contains a value that is not a string")
-		}
-
-		filePath := path.Join(levelDir, file)
-
-		// 压缩包内以存档名作为顶层目录，保证备份可直接还原为存档
-		fileName := path.Join(path.Base(levelDir), file)
-		fileStat, err := os.Stat(filePath)
-
-		// 文件或目录不存在时报错，中断备份（有意为之：用户应明确目录内容）
-		if err != nil {
-			return fmt.Errorf("(Get file info) %w", err)
-		}
-
-		switch fileStat.IsDir() {
-
-		case false:
-			// 单个文件出错只记录日志，不中断备份（有意为之）
-			err := addFile(fileName, filePath, zipWriter)
-			if err != nil {
-				record.Error("%v", err)
-			}
-		case true:
-			fileSystem := os.DirFS(filePath)
-			err := fs.WalkDir(fileSystem, ".", func(subFilePath string, d fs.DirEntry, err error) error {
-				// 遍历错误（如子目录不可读）仅跳过，不中断备份（有意为之）
-				if err != nil {
-					return fmt.Errorf("(Open dimension data directory) %w", err)
-				}
-
-				fullFilePath := path.Join(filePath, subFilePath)
-				fullFileName := path.Join(fileName, subFilePath)
-
-				subFileStat, err := os.Stat(fullFilePath)
-				if err != nil {
-					return fmt.Errorf("(Get data file info) %w", err)
-				}
-
-				if !subFileStat.IsDir() {
-					err := addFile(fullFileName, fullFilePath, zipWriter)
-					if err != nil {
-						return fmt.Errorf("(Write file into archive) %w", err)
-					}
-				}
-
-				return nil
-			})
-			if err != nil {
-				return fmt.Errorf("(Read directory) "+filePath+": %w", err)
-			}
-		}
-	}
-	return nil
-}
-
-// 解析 JSON 获得各维度保存规则
-func getRootSaveRule(configFile string) (map[string]any, error) {
-
-	// 读取规则文件的内容
-	jsonData, err := os.ReadFile(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("(Read config file) unable to read config file \""+configFile+"\": %w", err)
-	}
-
-	// 将 JSON 内容解析为映射表
-	rootRule := make(map[string]any)
-	err = json.Unmarshal(jsonData, &rootRule)
-	if err != nil {
-		return nil, fmt.Errorf("(Parse json data) unable to parse config file \""+configFile+"\": %w", err)
-	}
-
-	return rootRule, nil
-}
-
-// isKeyWord 判断字符是否为 ':'，配合 FieldsFunc 按 ':' 拆分命名空间 ID
-func isKeyWord(char rune) bool {
-	if char == rune(":"[0]) {
-		return true
-	} else {
-		return false
-	}
-}
-
-// formatRegionFilePath 拼接区域文件的路径，文件名格式为 r.<x>.<y>.mca。
-// 传入 levelDir 时生成磁盘路径；传入 path.Base(levelDir) 时生成压缩包内路径。
-func formatRegionFilePath(levelDir string, dimensionRootDirPath string, regionDataDir string, x int64, y int64) string {
-	regionFileName := "r." + strconv.FormatInt(x, 10) + "." + strconv.FormatInt(y, 10) + ".mca"
-	regionFilePath := path.Join(levelDir, dimensionRootDirPath, regionDataDir, regionFileName)
-	return regionFilePath
 }

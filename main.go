@@ -69,7 +69,7 @@ func main() {
 		return
 	}
 
-	// 考虑 windows 用户路径分割符是 \，提前转换为 / 路径。
+	// 考虑 windows 路径分割符是 \，提前转换为 / 路径。
 	levelDirPath = strings.ReplaceAll(levelDirPath, "\\", "/")
 	configFilePath = strings.ReplaceAll(configFilePath, "\\", "/")
 	outputDirPath = strings.ReplaceAll(outputDirPath, "\\", "/")
@@ -88,10 +88,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = parse.SaveDimensionFile(levelDirPath, configFilePath, zipWriter, addFile)
-	if err != nil {
-		record.Error("%v", err)
-		os.Exit(1)
+	if flag.Arg(0) == "old" {
+		err = parse.SaveOldDimensionFile(levelDirPath, configFilePath, zipWriter, addFile)
+		if err != nil {
+			record.Error("%v", err)
+			os.Exit(1)
+		}
+	} else {
+		err = parse.SaveDimensionFile(levelDirPath, configFilePath, zipWriter, addFile)
+		if err != nil {
+			record.Error("%v", err)
+			os.Exit(1)
+		}
 	}
 
 	err = parse.SaveRootDataFile(levelDirPath, configFilePath, zipWriter, addFile)
@@ -129,12 +137,6 @@ func levelFileIsValid(levelDir string) error {
 	// 若路径存在但不是目录，则视为无效存档
 	if !archiveFileInfo.IsDir() {
 		return errors.New("(Check world directory) level path is not a directory")
-	}
-
-	// 检查存档目录下是否有 level.dat 文件，这是世界存档的标识文件
-	_, err = os.Stat(path.Join(levelDir, "level.dat"))
-	if err != nil {
-		return fmt.Errorf("(Check \"level.dat\" file) %w", err)
 	}
 
 	return nil
