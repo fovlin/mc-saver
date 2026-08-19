@@ -12,6 +12,19 @@ import (
 	"strings"
 )
 
+func SaveOldAllFile(levelDir string, configFile string, zipWriter *zip.Writer, addFile addFile) (err error) {
+
+	if err := SaveOldDimensionFile(levelDir, configFile, zipWriter, addFile); err != nil {
+		return err
+	}
+
+	if err := SaveRootDataFile(levelDir, configFile, zipWriter, addFile); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // SaveDimensionFile 根据配置文件解析各维度的 range/simple 备份规则，
 // 将选中的区域文件与各维度 data 目录下的文件逐一写入 zip 压缩包。
 func SaveOldDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer, addFile addFile) error {

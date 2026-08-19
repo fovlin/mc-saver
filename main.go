@@ -21,6 +21,12 @@ var (
 	levelDirPath   string
 	outputDirPath  string
 
+	cmdMap map[string]func() = map[string]func(){
+		"":       run,
+		"old":    old,
+		"gencfg": gencfg,
+	}
+
 	defaultConfig string = `{
 	"dimension":{
 		"minecraft:overworld":{
@@ -57,24 +63,26 @@ func main() {
 	flag.StringVar(&outputDirPath, "o", ".", "Output directory path.")
 	flag.Parse()
 
-	// gencfg 子命令：生成默认配置文件后直接退出
-	if flag.Arg(0) == "gencfg" {
-		// 将默认配置写入规则文件后直接退出，方便用户快速生成配置
-		err := os.WriteFile(configFilePath, []byte(defaultConfig), 0666)
-		if err != nil {
-			record.Error("%v", err)
-			os.Exit(1)
-		}
-		record.Info("Created default config file: %s", configFilePath)
-		return
-	}
-
 	// 考虑 windows 路径分割符是 \，提前转换为 / 路径。
 	levelDirPath = strings.ReplaceAll(levelDirPath, "\\", "/")
 	configFilePath = strings.ReplaceAll(configFilePath, "\\", "/")
 	outputDirPath = strings.ReplaceAll(outputDirPath, "\\", "/")
 
 	// 校验存档目录是否有效，无效则直接退出
+
+	function, ok := cmdMap[flag.Arg(0)]
+	if !ok {
+		record.Error("%v", errors.New("\""+flag.Arg(0)+"\"command not found"))
+		os.Exit(1)
+	}
+
+	function()
+
+	record.Info("Backup completed successfully!")
+}
+
+func old() {
+
 	err := levelFileIsValid(levelDirPath)
 	if err != nil {
 		record.Error("%v", err)
@@ -88,41 +96,65 @@ func main() {
 		os.Exit(1)
 	}
 
-	if flag.Arg(0) == "old" {
-		err = parse.SaveOldDimensionFile(levelDirPath, configFilePath, zipWriter, addFile)
-		if err != nil {
-			record.Error("%v", err)
-			os.Exit(1)
-		}
-	} else {
-		err = parse.SaveDimensionFile(levelDirPath, configFilePath, zipWriter, addFile)
-		if err != nil {
-			record.Error("%v", err)
-			os.Exit(1)
-		}
-	}
-
-	err = parse.SaveRootDataFile(levelDirPath, configFilePath, zipWriter, addFile)
-	if err != nil {
+	if err := parse.SaveOldAllFile(levelDirPath, configFilePath, zipWriter, addFile); err != nil {
 		record.Error("%v", err)
 		os.Exit(1)
 	}
 
 	// 关闭 zip 写入器，完成压缩包内容的写入
-	err = zipWriter.Close()
+	if err := zipWriter.Close(); err != nil {
+		record.Error("%v", err)
+		os.Exit(1)
+	}
+
+	if err := fileWriter.Close(); err != nil {
+		record.Error("%v", err)
+		os.Exit(1)
+	}
+}
+
+func gencfg() {
+	// 将默认配置写入规则文件后直接退出，方便用户快速生成配置
+	err := os.WriteFile(configFilePath, []byte(defaultConfig), 0644)
+	if err != nil {
+		record.Error("%v", err)
+		os.Exit(1)
+	}
+	record.Info("created default config file: %s", configFilePath)
+	os.Exit(0)
+}
+
+func run() {
+
+	err := levelFileIsValid(levelDirPath)
 	if err != nil {
 		record.Error("%v", err)
 		os.Exit(1)
 	}
 
-	// 关闭底层输出文件，确保数据完整落盘
-	err = fileWriter.Close()
+	// 创建 zip 压缩包写入器
+	zipWriter, fileWriter, err := createZipWriter()
 	if err != nil {
 		record.Error("%v", err)
 		os.Exit(1)
 	}
 
-	record.Info("Backup completed successfully!")
+	if err := parse.SaveAllFile(levelDirPath, configFilePath, zipWriter, addFile); err != nil {
+		record.Error("%v", err)
+		os.Exit(1)
+	}
+
+	// 关闭 zip 写入器，完成压缩包内容的写入
+	if err := zipWriter.Close(); err != nil {
+		record.Error("%v", err)
+		os.Exit(1)
+	}
+
+	if err := fileWriter.Close(); err != nil {
+		record.Error("%v", err)
+		os.Exit(1)
+	}
+
 }
 
 // 校验存档目录是否有效，需要是存在的目录且包含 level.dat 文件

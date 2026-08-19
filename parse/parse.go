@@ -22,6 +22,19 @@ var (
 	}
 )
 
+func SaveAllFile(levelDir string, configFile string, zipWriter *zip.Writer, addFile addFile) (err error) {
+
+	if err := SaveDimensionFile(levelDir, configFile, zipWriter, addFile); err != nil {
+		return err
+	}
+
+	if err := SaveRootDataFile(levelDir, configFile, zipWriter, addFile); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // addFile 是由调用方注入的回调，负责将单个文件写入 zip 压缩包
 type addFile func(fileName string, filePath string, zipWriter *zip.Writer) error
 
@@ -181,16 +194,16 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 		if err == nil {
 			dimensionDataDirSystem := os.DirFS(dimensionDataDirPath)
 			err = fs.WalkDir(dimensionDataDirSystem, ".", func(subFilePath string, d fs.DirEntry, err error) error {
+
 				if err != nil {
-					return fmt.Errorf("(open dimension directory) %w", err)
+					return fmt.Errorf("(read dimension directory) %w", err)
 				}
 
 				endFilePath := path.Join(dimensionDataDirPath, subFilePath)
 				dataFileName := path.Join(dimensionDataDirName, subFilePath)
 				subFileStat, err := os.Stat(endFilePath)
-
 				if err != nil {
-					return fmt.Errorf("(get data file info) %w", err)
+					return fmt.Errorf("(read dimension data file) %w", err)
 				}
 
 				if !subFileStat.IsDir() {
@@ -203,7 +216,7 @@ func SaveDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer
 				return nil
 			})
 			if err != nil {
-				return fmt.Errorf("(read directory) "+dimensionDataDirPath+": %w", err)
+				return fmt.Errorf("(read dimension directory) "+dimensionDataDirPath+": %w", err)
 			}
 		}
 	}
