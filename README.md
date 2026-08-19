@@ -10,9 +10,9 @@ A lightweight Minecraft world backup tool written in Go. It packs a *selected su
 - **Per-dimension rules** — configure each dimension (`overworld`, `the_nether`, `the_end`, or any custom dimension) independently.
 - **Flexible region selection** — select regions by rectangular `range` or by individual `simple` coordinates.
 - **Core data support** — include files and folders at the world root, such as `level.dat`, `data`, `datapacks`, and `players`.
-- **Dated ZIP output** — archives are named `<world>-YYYY-MM-DD.zip` automatically.
+- **Dated ZIP output by default** — archives are named `<world>-YYYY-MM-DD.zip` automatically, and you can also pass any output filename directly.
 - **Cross-platform** — build for Linux, Windows, and macOS (amd64/arm64) with one script.
-- **Simple CLI** — just a config file, a world directory, and a run.
+- **Simple CLI** — subcommands (`run`, `gencfg`) plus an interactive wizard when no command is given.
 
 ## Requirements
 
@@ -36,54 +36,70 @@ Or cross-compile for all supported platforms with the included script (outputs g
 ## Usage
 
 ```
-# Syntax: -c specifies the config file, -t the world directory, -o the output directory
-mc-saver [-c <config file>] [-t <world directory>] [-o <output directory>] [old]
-
-# gencfg: write a default config file and exit (place -c before gencfg to set the output path)
-mc-saver [-c <config file>] gencfg
+# Syntax: flags come before the subcommand
+mc-saver [-c <config file>] [-l] <command> [args...]
 ```
 
-| Flag | Default | Description |
+| Command / Flag | Default | Description |
 | --- | --- | --- |
+| `run` | — | Back up a world. Positional args: `<world>` and `<output>` (see [Output path](#output-path)). |
+| `gencfg` | — | Write a default config file and exit. Optional positional arg: `<config file>`. |
+| *(no command)* | — | Interactive wizard: prompts for the world directory and output path, and offers to generate a config if missing. |
 | `-c` | `save-rule.json` | Path to the JSON backup rule file. |
-| `-t` | `world` | Path to the world directory to back up. |
-| `-o` | `.` | Directory where the ZIP archive is written. |
+| `-l` | off | Back up using the legacy single-folder world layout (`DIM-1`/`DIM1`), see [Legacy mode](#legacy-mode--l). |
+
+Flags must be placed before the subcommand; anything after the subcommand is treated as a positional argument.
 
 Examples:
 
 ```bash
-# Back up ./world using ./save-rule.json
+# Interactive wizard: enter the world directory and output path
 ./mc-saver
 
-# Back up a specific world
-./mc-saver -t /path/to/world
+# Back up a specific world; dated archive lands in the current directory
+./mc-saver run /path/to/world
 
 # Use a custom rule file
-./mc-saver -c rules.json -t /path/to/world
+./mc-saver -c rules.json run /path/to/world
 
-# Write the archive to a custom output directory
-./mc-saver -t /path/to/world -o /path/to/backups
+# Write the archive into an existing output directory
+./mc-saver run /path/to/world /path/to/backups
+
+# Write the archive to a custom output filename
+./mc-saver run /path/to/world ~/backups/world-backup.zip
 
 # Generate a default save-rule.json and exit
 ./mc-saver gencfg
 
-# Back up using the legacy world layout (old mode, see below)
-./mc-saver -t /path/to/old_world old
+# Generate a default config under a custom name
+./mc-saver gencfg rules.json
+
+# Back up using the legacy world layout (-l flag, see below)
+./mc-saver -l run /path/to/old_world /path/to/backups
 ```
 
-The result is a ZIP archive named after the world and the current date — e.g. `world-2026-08-13.zip` — written to the output directory (`.` by default).
+With no subcommand, `mc-saver` runs an interactive wizard. If the config file is missing it first asks whether to generate a default one; answering `y` (or `Y`) writes it and continues straight into the backup flow, while any other answer exits. It then prompts for the world directory (default `world`) and the output path (default `.`) before backing up.
 
-## Old mode (legacy world layout)
+### Output path
 
-Older Minecraft versions use a single-folder layout: overworld content lives directly in the world root, with the Nether and the End stored as `DIM-1` and `DIM1` folders instead of modern `dimensions/<namespace>/<id>/`. Append an `old` argument at the end of the command to back up using the legacy layout:
+The output argument can be:
+
+- an **existing directory** — the archive is written as `<world>-YYYY-MM-DD.zip` inside it;
+- a **file path** (existing or not) — the archive is written directly to that path, so you can choose any name. Missing parent directories are created automatically.
+
+Note that a non-existent output path is always treated as a filename, never as a directory. To write into a new directory, create it first (e.g. `mkdir -p /path/to/backups`) or use a path ending in a filename.
+
+## Legacy mode (-l)
+
+Older Minecraft versions use a single-folder layout: overworld content lives directly in the world root, with the Nether and the End stored as `DIM-1` and `DIM1` folders instead of modern `dimensions/<namespace>/<id>/`. Pass the `-l` flag (before the subcommand) to back up using the legacy layout:
 
 ```bash
-./mc-saver -c rules.json -t /path/to/old_world -o /path/to/backups old
+./mc-saver -l run /path/to/old_world /path/to/backups
 ```
 
-`old` is a positional argument and must come after every option (`-c`, `-t`, `-o`); options placed after it are not parsed.
+`-l` works with both `run` and the interactive wizard, and must be placed before the subcommand.
 
-In the legacy layout the overworld's data directory is the root-level `data/`, which the dimension walk already covers. Do not list `"data"` in `file` again, or the same files will be packed twice. If you run old mode with a config generated by `gencfg`, remove `"data"` from the `file` list first.
+In the legacy layout the overworld's data directory is the root-level `data/`, which the dimension walk already covers. Do not list `"data"` in `file` again, or the same files will be packed twice. If you run legacy mode with a config generated by `gencfg`, remove `"data"` from the `file` list first.
 
 ## Configuration
 
@@ -126,7 +142,7 @@ Keyed by dimension namespace ID (`<namespace>:<id>`). Each dimension rule can ha
 
 Region coordinates follow Minecraft's region file naming (`r.<x>.<z>.mca`, one region covers 512×512 blocks). If both `range` and `simple` are present for a dimension, both rules apply.
 
-For every selected region of a dimension, the tool collects `r.<x>.<z>.mca` from the `region/`, `entities/`, and `poi/` directories under `dimensions/<namespace>/<id>/`, and also includes all files under that dimension's `data/` directory.
+For every selected region of a dimension, the tool collects `r.<x>.<z>.mca` from the `region/`, `entities/`, and `poi/` directories under `dimensions/<namespace>/<id>/`, and also includes all files under that dimension's `data/` directory (skipped silently if it doesn't exist).
 
 Every dimension listed in the config must have a real `dimensions/<namespace>/<id>/` directory, or the backup fails. Nether/End directories usually only appear after a player first enters them, so remove rules for dimensions that don't exist in the save yet.
 
@@ -146,7 +162,8 @@ The `file` list should only contain root-level entries that the dimension rules 
 ├── parse/           # Config parsing and file collection (writes into the ZIP via callback)
 ├── record/          # Colored console logging (INFO/WARN/ERROR)
 ├── build.sh         # Cross-compile script (Linux/Windows/macOS, amd64/arm64)
-├── save-rule.json   # Example backup rule file
+├── clean.sh         # Developer-only script that resets the repository and force-pushes (dangerous)
+├── save-rule.json   # Backup rule file (generate one with gencfg)
 └── build/           # Output directory for build.sh binaries
 ```
 

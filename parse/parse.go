@@ -252,7 +252,7 @@ func SaveRootDataFile(levelDir string, configFile string, zipWriter *zip.Writer,
 
 		// 文件或目录不存在时报错，中断备份（有意为之：用户应明确目录内容）
 		if err != nil {
-			return fmt.Errorf("(get file info) %w", err)
+			return fmt.Errorf("(read file) %w", err)
 		}
 
 		switch fileStat.IsDir() {
@@ -276,7 +276,7 @@ func SaveRootDataFile(levelDir string, configFile string, zipWriter *zip.Writer,
 
 				subFileStat, err := os.Stat(fullFilePath)
 				if err != nil {
-					return fmt.Errorf("(get data file info) %w", err)
+					return fmt.Errorf("(read data file) %w", err)
 				}
 
 				if !subFileStat.IsDir() {

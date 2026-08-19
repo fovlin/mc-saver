@@ -65,7 +65,7 @@ func SaveOldDimensionFile(levelDir string, configFile string, zipWriter *zip.Wri
 
 		_, err := os.Stat(path.Join(levelDir, dimensionRootDirPath))
 		if err != nil {
-			return fmt.Errorf("(open dimension root directory) %w", err)
+			return fmt.Errorf("(read dimension root directory) %w", err)
 		}
 
 		// 对维度规则对象进行断言，它对应 JSON 文件里命名空间 ID 下的配置
@@ -205,7 +205,7 @@ func SaveOldDimensionFile(levelDir string, configFile string, zipWriter *zip.Wri
 				subFileStat, err := os.Stat(endFilePath)
 
 				if err != nil {
-					return fmt.Errorf("(get data file info) %w", err)
+					return fmt.Errorf("(read data file) %w", err)
 				}
 
 				if !subFileStat.IsDir() {

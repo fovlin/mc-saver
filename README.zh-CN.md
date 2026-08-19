@@ -10,9 +10,9 @@ English version: [README.md](README.md)
 - **按维度配置** — 可以分别配置主世界（`overworld`）、下界（`the_nether`）、末地（`the_end`）以及任意自定义维度。
 - **灵活的区域选择** — 既可以用矩形 `range` 规则，也可以用 `simple` 规则逐个指定区域坐标。
 - **核心数据支持** — 可包含世界根目录下的文件和文件夹，如 `level.dat`、`data`、`datapacks`、`players`。
-- **自动命名压缩包** — 输出文件自动命名为 `<存档名>-YYYY-MM-DD.zip`。
+- **默认自动命名压缩包** — 输出文件默认命名为 `<存档名>-YYYY-MM-DD.zip`，也可以直接指定任意输出文件名。
 - **跨平台** — 一个脚本即可交叉编译 Linux、Windows、macOS（amd64/arm64）。
-- **命令行简单** — 只需要一个配置文件、一个存档目录，然后运行即可。
+- **命令行简单** — 提供 `run`、`gencfg` 子命令，不写子命令时进入交互向导。
 
 ## 环境要求
 
@@ -36,54 +36,70 @@ go build -o mc-saver .
 ## 使用方法
 
 ```
-# 语法说明：-c 指定配置文件，-t 指定存档目录，-o 指定输出目录
-mc-saver [-c <配置文件>] [-t <存档目录>] [-o <输出目录>] [old]
-
-# gencfg：生成默认配置文件后退出（将 -c 放在 gencfg 之前可指定输出路径）
-mc-saver [-c <配置文件>] gencfg
+# 语法说明：参数需要放在子命令之前
+mc-saver [-c <配置文件>] [-l] <命令> [参数...]
 ```
 
-| 参数 | 默认值 | 说明 |
+| 命令 / 参数 | 默认值 | 说明 |
 | --- | --- | --- |
+| `run` | — | 备份存档。位置参数：`<存档目录>` 和 `<输出路径>`（见[输出路径](#输出路径)）。 |
+| `gencfg` | — | 生成默认配置文件后退出。可选位置参数：`<配置文件>`。 |
+| （无命令） | — | 交互向导：依次提示输入存档目录和输出路径；缺少配置文件时会询问是否生成。 |
 | `-c` | `save-rule.json` | 备份规则文件（JSON）的路径。 |
-| `-t` | `world` | 要备份的世界存档目录。 |
-| `-o` | `.` | ZIP 压缩包的输出目录。 |
+| `-l` | 关闭 | 按旧版单文件夹布局（`DIM-1`/`DIM1`）备份，见[旧版布局模式](#旧版布局模式-l)。 |
+
+参数必须放在子命令之前；子命令之后的内容一律按位置参数处理。
 
 示例：
 
 ```bash
-# 使用当前目录下的 save-rule.json 备份 ./world
+# 交互向导：按提示输入存档目录和输出路径
 ./mc-saver
 
-# 指定要备份的存档
-./mc-saver -t /path/to/world
+# 指定要备份的存档，日期压缩包生成在当前目录
+./mc-saver run /path/to/world
 
 # 使用自定义规则文件
-./mc-saver -c rules.json -t /path/to/world
+./mc-saver -c rules.json run /path/to/world
 
-# 指定输出目录
-./mc-saver -t /path/to/world -o /path/to/backups
+# 输出到已存在的目录
+./mc-saver run /path/to/world /path/to/backups
+
+# 指定自定义输出文件名
+./mc-saver run /path/to/world ~/backups/world-backup.zip
 
 # 生成默认的 save-rule.json 后退出
 ./mc-saver gencfg
 
-# 按旧版存档布局备份（old 模式，见下文说明）
-./mc-saver -t /path/to/old_world old
+# 生成自定义名称的默认配置
+./mc-saver gencfg rules.json
+
+# 按旧版存档布局备份（-l 参数，见下文说明）
+./mc-saver -l run /path/to/old_world /path/to/backups
 ```
 
-备份完成后会在输出目录（默认当前目录）生成以存档名和日期命名的 ZIP 文件，例如 `world-2026-08-13.zip`。
+不写子命令时，`mc-saver` 进入交互向导。如果配置文件不存在，会先询问是否生成默认配置：输入 `y`（或 `Y`）会立即生成并继续备份流程，输入其他内容则退出。随后依次提示输入存档目录（默认 `world`）和输出路径（默认 `.`）。
 
-## old 模式（旧版存档布局）
+### 输出路径
 
-旧版 Minecraft 使用单文件夹布局：主世界内容直接位于存档根目录，下界和末地分别是 `DIM-1` 和 `DIM1` 文件夹，而不是现代的 `dimensions/<命名空间>/<ID>/`。在命令末尾加一个 `old` 参数即可按旧版布局备份：
+输出路径可以是：
+
+- **已存在的目录** — 在目录内生成 `<存档名>-YYYY-MM-DD.zip`；
+- **文件路径**（无论是否已存在）— 直接写入该路径，可以任意指定文件名，缺少的父目录会自动创建。
+
+注意：不存在的输出路径一律按**文件名**处理，不会当作目录创建。想输出到新目录，请先手动创建（例如 `mkdir -p /path/to/backups`），或传入一个带文件名的完整路径。
+
+## 旧版布局模式（-l）
+
+旧版 Minecraft 使用单文件夹布局：主世界内容直接位于存档根目录，下界和末地分别是 `DIM-1` 和 `DIM1` 文件夹，而不是现代的 `dimensions/<命名空间>/<ID>/`。传入 `-l` 参数（放在子命令之前）即可按旧版布局备份：
 
 ```bash
-./mc-saver -c rules.json -t /path/to/old_world -o /path/to/backups old
+./mc-saver -l run /path/to/old_world /path/to/backups
 ```
 
-`old` 是位置参数，必须放在所有选项（`-c`、`-t`、`-o`）之后，否则后面的选项不会被解析。
+`-l` 对 `run` 和交互向导都有效，且必须放在子命令之前。
 
-旧版布局中，主世界的数据目录就是存档根目录下的 `data/`，old 模式的维度备份已经包含它，所以 `file` 列表里不要重复写 `"data"`，否则同一批文件会重复进包。使用 `gencfg` 生成的默认配置运行 old 模式前，请先从 `file` 列表中删除 `"data"`。
+旧版布局中，主世界的数据目录就是存档根目录下的 `data/`，旧版模式的维度备份已经包含它，所以 `file` 列表里不要重复写 `"data"`，否则同一批文件会重复进包。使用 `gencfg` 生成的默认配置运行旧版模式前，请先从 `file` 列表中删除 `"data"`。
 
 ## 配置说明
 
@@ -126,7 +142,7 @@ mc-saver [-c <配置文件>] gencfg
 
 区域坐标与 Minecraft 的区域文件命名一致（`r.<x>.<z>.mca`，一个区域覆盖 512×512 方块）。如果某个维度同时配置了 `range` 和 `simple`，两种规则都会生效。
 
-对于选中的每个区域，程序会从 `dimensions/<命名空间>/<ID>/` 下的 `region/`、`entities/`、`poi/` 目录中收集对应的 `r.<x>.<z>.mca` 文件，同时也会包含该维度 `data/` 目录下的全部文件。
+对于选中的每个区域，程序会从 `dimensions/<命名空间>/<ID>/` 下的 `region/`、`entities/`、`poi/` 目录中收集对应的 `r.<x>.<z>.mca` 文件，同时也会包含该维度 `data/` 目录下的全部文件（该目录不存在时静默跳过）。
 
 配置中出现的每个维度，其 `dimensions/<命名空间>/<ID>/` 目录必须真实存在，否则备份会直接失败。下界、末地等维度的目录通常要等玩家第一次进入才会生成，所以新存档或从未去过的维度需要从配置中移除对应规则。
 
@@ -146,7 +162,8 @@ mc-saver [-c <配置文件>] gencfg
 ├── parse/           # 配置解析与文件收集（通过回调直接写入 ZIP）
 ├── record/          # 彩色控制台日志（INFO/WARN/ERROR）
 ├── build.sh         # 交叉编译脚本（Linux/Windows/macOS，amd64/arm64）
-├── save-rule.json   # 示例备份规则文件
+├── clean.sh         # 仅供开发使用的仓库重置脚本，会强制推送（危险操作）
+├── save-rule.json   # 备份规则文件（可用 gencfg 生成）
 └── build/           # build.sh 编译产物的输出目录
 ```
 

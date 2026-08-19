@@ -1,30 +1,32 @@
 package main
 
 import (
-	"acovia.net/mc-saver/parse"
-	"acovia.net/record"
 	"archive/zip"
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	"acovia.net/mc-saver/parse"
+	"acovia.net/record"
 )
 
 // 默认配置内容，gencfg 子命令会将其写入指定的规则文件
 var (
-	configFilePath string
-	levelDirPath   string
-	outputDirPath  string
+	UseLegacyMode  bool   = false
+	configFilePath string = "save-rule.json"
+	levelDirPath   string = "world"
+	outputPath     string = "."
 
 	cmdMap map[string]func() = map[string]func(){
-		"":       run,
-		"old":    old,
+		"run":    run,
 		"gencfg": gencfg,
+		"": empty,
 	}
 
 	defaultConfig string = `{
@@ -57,16 +59,18 @@ var (
 // main 是程序入口：解析命令行参数、校验存档目录，并按规则将选中文件写入 zip 压缩包
 func main() {
 
-	// 定义命令行参数，-c 指定规则文件，-t 指定存档目录
-	flag.StringVar(&configFilePath, "c", "save-rule.json", "Json config file path.")
-	flag.StringVar(&levelDirPath, "t", "world", "World file path.")
-	flag.StringVar(&outputDirPath, "o", ".", "Output directory path.")
+	// 定义命令行参数，-c 指定规则文件
+	flag.StringVar(&configFilePath, "c", configFilePath, "config file path")
+	flag.BoolFunc("l", "legacy world mode", func(s string) error {
+		UseLegacyMode = true
+		return nil
+	})
 	flag.Parse()
 
 	// 考虑 windows 路径分割符是 \，提前转换为 / 路径。
 	levelDirPath = strings.ReplaceAll(levelDirPath, "\\", "/")
 	configFilePath = strings.ReplaceAll(configFilePath, "\\", "/")
-	outputDirPath = strings.ReplaceAll(outputDirPath, "\\", "/")
+	outputPath = strings.ReplaceAll(outputPath, "\\", "/")
 
 	// 校验存档目录是否有效，无效则直接退出
 
@@ -81,43 +85,50 @@ func main() {
 	record.Info("Backup completed successfully!")
 }
 
-func old() {
-
-	err := levelFileIsValid(levelDirPath)
-	if err != nil {
-		record.Error("%v", err)
-		os.Exit(1)
+func empty() {
+	scanner := bufio.NewScanner(os.Stdin)
+	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
+		fmt.Printf("generate a default config file (y/n): ")
+		if scanner.Scan() {
+			if input := scanner.Text(); input == "y" || input == "Y" {
+				if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
+					record.Error("(generate default config) %v",errors.New("file \"" + configFilePath + "\" existed"))
+				}
+				err := os.WriteFile(configFilePath, []byte(defaultConfig), 0644)
+				if err != nil {
+					record.Error("%v", err)
+					os.Exit(1)
+				}
+				record.Info("created default config file: %s", configFilePath)
+			} else {
+				os.Exit(0)
+			}
+		}
 	}
-
-	// 创建 zip 压缩包写入器
-	zipWriter, fileWriter, err := createZipWriter()
-	if err != nil {
-		record.Error("%v", err)
-		os.Exit(1)
+	fmt.Printf("please enter level directory path (world): ")
+	if scanner.Scan() {
+		input := scanner.Text()
+		if len(input) != 0 {
+			levelDirPath = input
+		}
 	}
-
-	if err := parse.SaveOldAllFile(levelDirPath, configFilePath, zipWriter, addFile); err != nil {
-		record.Error("%v", err)
-		os.Remove(fileWriter.Name())
-		os.Exit(1)
+	fmt.Printf("please enter output path (world-xxxx-xx-xx.zip): ")
+	if scanner.Scan() {
+		input := scanner.Text()
+		if len(input) != 0 {
+			outputPath = input
+		}
 	}
-
-	// 关闭 zip 写入器，完成压缩包内容的写入
-	if err := zipWriter.Close(); err != nil {
-		record.Error("%v", err)
-		os.Remove(fileWriter.Name())
-		os.Exit(1)
-	}
-
-	if err := fileWriter.Close(); err != nil {
-		record.Error("%v", err)
-		os.Remove(fileWriter.Name())
-		os.Exit(1)
-	}
+	run()
 }
 
 func gencfg() {
-	// 将默认配置写入规则文件后直接退出，方便用户快速生成配置
+	if flag.Arg(1) != "" {
+		configFilePath = flag.Arg(1)
+	}
+	if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
+		record.Error("(generate default config) %v",errors.New("file \"" + configFilePath + "\" existed"))
+	}
 	err := os.WriteFile(configFilePath, []byte(defaultConfig), 0644)
 	if err != nil {
 		record.Error("%v", err)
@@ -129,6 +140,14 @@ func gencfg() {
 
 func run() {
 
+	if len(flag.Arg(1)) != 0 {
+		levelDirPath = flag.Arg(1)
+	}
+
+	if len(flag.Arg(2)) != 0 {
+		outputPath = flag.Arg(2)
+	}
+
 	err := levelFileIsValid(levelDirPath)
 	if err != nil {
 		record.Error("%v", err)
@@ -142,10 +161,18 @@ func run() {
 		os.Exit(1)
 	}
 
-	if err := parse.SaveAllFile(levelDirPath, configFilePath, zipWriter, addFile); err != nil {
-		record.Error("%v", err)
-		os.Remove(fileWriter.Name())
-		os.Exit(1)
+	if UseLegacyMode {
+		if err := parse.SaveOldAllFile(levelDirPath, configFilePath, zipWriter, addFile); err != nil {
+			record.Error("%v", err)
+			os.Remove(fileWriter.Name())
+			os.Exit(1)
+		}
+	} else {
+		if err := parse.SaveAllFile(levelDirPath, configFilePath, zipWriter, addFile); err != nil {
+			record.Error("%v", err)
+			os.Remove(fileWriter.Name())
+			os.Exit(1)
+		}
 	}
 
 	// 关闭 zip 写入器，完成压缩包内容的写入
@@ -181,25 +208,35 @@ func levelFileIsValid(levelDir string) error {
 
 // 创建 zip 压缩包写入器，输出文件名为存档名加日期
 func createZipWriter() (*zip.Writer, *os.File, error) {
-
+	var archiveFilePath string
 	archiveFileName := path.Base(levelDirPath) + "-" + time.Now().Format(time.DateOnly) + ".zip"
+	outputFileInfo, err := os.Stat(outputPath)
+	switch true {
 
-	// 输出目录不存在时自动创建（MkdirAll 支持多级路径）
-	_, err := os.Stat(outputDirPath)
-
-	if os.IsNotExist(err) {
-		err := os.MkdirAll(outputDirPath, fs.ModePerm)
+	case os.IsNotExist(err):
+		err = os.MkdirAll(path.Dir(outputPath), 0755)
 		if err != nil {
-			return nil, nil, fmt.Errorf("(create directory) "+outputDirPath+": %w", err)
+			return nil, nil, fmt.Errorf("(create archive) %w", err)
 		}
-	} else if err != nil {
-		return nil, nil, err
+		archiveFilePath = path.Join(path.Dir(outputPath), path.Base(outputPath))
+		
+	case !os.IsNotExist(err) && err != nil:
+		return nil, nil, fmt.Errorf("(create archive) %w", err)
+
+	case outputFileInfo.IsDir():
+		archiveFilePath = path.Join(outputPath, archiveFileName)
+
+	case !outputFileInfo.IsDir():
+		archiveFilePath = outputPath
+
+	default:
+		return nil, nil, fmt.Errorf("(create archive) %w", errors.New("invalid output path"))
+
 	}
 
-	// 创建输出文件，文件名格式为 存档名-日期.zip
-	fileWriter, err := os.Create(path.Join(outputDirPath, archiveFileName))
+	fileWriter, err := os.Create(path.Join(archiveFilePath))
 	if err != nil {
-		return nil, nil, fmt.Errorf("(create archive file) %w", err)
+		return nil, nil, fmt.Errorf("(create archive) %w", err)
 	}
 
 	// 基于输出文件创建 zip 写入器
