@@ -17,7 +17,7 @@ A lightweight Minecraft world backup tool written in Go. It packs a *selected su
 ## Requirements
 
 - Go 1.26.5+ to build from source (or use the program from a Release).
-- A Minecraft Java Edition world directory. The tool verifies that the directory exists and contains `level.dat`.
+- A Minecraft Java Edition world directory. The tool verifies that the target path exists and is a directory.
 
 ## Build
 

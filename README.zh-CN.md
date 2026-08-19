@@ -17,7 +17,7 @@ English version: [README.md](README.md)
 ## 环境要求
 
 - Go 1.26.5 及以上版本，用于从源码构建（也可以直接使用 Release 发布里的程序）。
-- 一个 Minecraft Java 版世界存档目录。程序会校验目录是否存在且包含 `level.dat`。
+- 一个 Minecraft Java 版世界存档目录。程序会校验目标路径存在且为目录。
 
 ## 编译
 

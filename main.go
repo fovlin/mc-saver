@@ -72,7 +72,7 @@ func main() {
 
 	function, ok := cmdMap[flag.Arg(0)]
 	if !ok {
-		record.Error("%v", errors.New("\""+flag.Arg(0)+"\"command not found"))
+		record.Error("%v", errors.New("\""+flag.Arg(0)+"\" command not found"))
 		os.Exit(1)
 	}
 
@@ -98,17 +98,20 @@ func old() {
 
 	if err := parse.SaveOldAllFile(levelDirPath, configFilePath, zipWriter, addFile); err != nil {
 		record.Error("%v", err)
+		os.Remove(fileWriter.Name())
 		os.Exit(1)
 	}
 
 	// 关闭 zip 写入器，完成压缩包内容的写入
 	if err := zipWriter.Close(); err != nil {
 		record.Error("%v", err)
+		os.Remove(fileWriter.Name())
 		os.Exit(1)
 	}
 
 	if err := fileWriter.Close(); err != nil {
 		record.Error("%v", err)
+		os.Remove(fileWriter.Name())
 		os.Exit(1)
 	}
 }
@@ -141,29 +144,31 @@ func run() {
 
 	if err := parse.SaveAllFile(levelDirPath, configFilePath, zipWriter, addFile); err != nil {
 		record.Error("%v", err)
+		os.Remove(fileWriter.Name())
 		os.Exit(1)
 	}
 
 	// 关闭 zip 写入器，完成压缩包内容的写入
 	if err := zipWriter.Close(); err != nil {
 		record.Error("%v", err)
+		os.Remove(fileWriter.Name())
 		os.Exit(1)
 	}
 
 	if err := fileWriter.Close(); err != nil {
 		record.Error("%v", err)
+		os.Remove(fileWriter.Name())
 		os.Exit(1)
 	}
 
 }
 
-// 校验存档目录是否有效，需要是存在的目录且包含 level.dat 文件
 func levelFileIsValid(levelDir string) error {
 
 	// 获取存档目录的信息，判断目录是否存在
 	archiveFileInfo, err := os.Stat(levelDir)
 	if err != nil {
-		return fmt.Errorf("(get level directory info) %w", err)
+		return fmt.Errorf("(read level directory) %w", err)
 	}
 
 	// 若路径存在但不是目录，则视为无效存档
@@ -182,11 +187,13 @@ func createZipWriter() (*zip.Writer, *os.File, error) {
 	// 输出目录不存在时自动创建（MkdirAll 支持多级路径）
 	_, err := os.Stat(outputDirPath)
 
-	if err != nil {
+	if os.IsNotExist(err) {
 		err := os.MkdirAll(outputDirPath, fs.ModePerm)
 		if err != nil {
 			return nil, nil, fmt.Errorf("(create directory) "+outputDirPath+": %w", err)
 		}
+	} else if err != nil {
+		return nil, nil, err
 	}
 
 	// 创建输出文件，文件名格式为 存档名-日期.zip
