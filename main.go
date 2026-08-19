@@ -131,12 +131,12 @@ func levelFileIsValid(levelDir string) error {
 	// 获取存档目录的信息，判断目录是否存在
 	archiveFileInfo, err := os.Stat(levelDir)
 	if err != nil {
-		return fmt.Errorf("(Get level directory info) %w", err)
+		return fmt.Errorf("(get level directory info) %w", err)
 	}
 
 	// 若路径存在但不是目录，则视为无效存档
 	if !archiveFileInfo.IsDir() {
-		return errors.New("(Check world directory) level path is not a directory")
+		return errors.New("(check world directory) level path is not a directory")
 	}
 
 	return nil
@@ -153,14 +153,14 @@ func createZipWriter() (*zip.Writer, *os.File, error) {
 	if err != nil {
 		err := os.MkdirAll(outputDirPath, fs.ModePerm)
 		if err != nil {
-			return nil, nil, fmt.Errorf("(Create directory) "+outputDirPath+": %w", err)
+			return nil, nil, fmt.Errorf("(create directory) "+outputDirPath+": %w", err)
 		}
 	}
 
 	// 创建输出文件，文件名格式为 存档名-日期.zip
 	fileWriter, err := os.Create(path.Join(outputDirPath, archiveFileName))
 	if err != nil {
-		return nil, nil, fmt.Errorf("(Create archive file) %w", err)
+		return nil, nil, fmt.Errorf("(create archive file) %w", err)
 	}
 
 	// 基于输出文件创建 zip 写入器
@@ -177,7 +177,7 @@ func addFile(fileName string, filePath string, zipWriter *zip.Writer) error {
 	// 打开源文件；若文件不存在则输出警告并跳过（有意为之：用户目录缺少文件不应中断备份）
 	fileReader, err := os.Open(filePath)
 	if err != nil {
-		record.Warn("(Skip file) %v", err)
+		record.Warn("(skip file) %v", err)
 		return nil
 	}
 
@@ -186,16 +186,16 @@ func addFile(fileName string, filePath string, zipWriter *zip.Writer) error {
 	// 在压缩包中创建同名条目，保持与存档一致的目录结构
 	file, err := zipWriter.Create(fileName)
 	if err != nil {
-		return fmt.Errorf("(Create new file in archive) %w", err)
+		return fmt.Errorf("(create new file in archive) %w", err)
 	}
 
 	// 将区域文件内容写入压缩包
 	_, err = io.Copy(file, fileReader)
 	if err != nil {
-		return fmt.Errorf("(Write compressed file) %w", err)
+		return fmt.Errorf("(write compressed file) %w", err)
 	}
 
-	record.Info("(Added) %s", fileName)
+	record.Info("(added) %s", fileName)
 
 	return nil
 
