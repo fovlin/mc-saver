@@ -43,7 +43,7 @@ mc-saver [-c <config file>] [-l] <command> [args...]
 | Command / Flag | Default | Description |
 | --- | --- | --- |
 | `run` | — | Back up a world. Positional args: `<world>` and `<output>` (see [Output path](#output-path)). |
-| `gencfg` | — | Write a default config file and exit. Optional positional arg: `<config file>`. |
+| `gencfg` | — | Write a default config file and exit; refuses to overwrite an existing file. Optional positional arg: `<config file>`. |
 | *(no command)* | — | Interactive wizard: prompts for the world directory and output path, and offers to generate a config if missing. |
 | `-c` | `save-rule.json` | Path to the JSON backup rule file. |
 | `-l` | off | Back up using the legacy single-folder world layout (`DIM-1`/`DIM1`), see [Legacy mode](#legacy-mode--l). |
@@ -84,8 +84,8 @@ With no subcommand, `mc-saver` runs an interactive wizard. If the config file is
 
 The output argument can be:
 
-- an **existing directory** — the archive is written as `<world>-YYYY-MM-DD.zip` inside it;
-- a **file path** (existing or not) — the archive is written directly to that path, so you can choose any name. Missing parent directories are created automatically.
+- an **existing directory** — the archive is written as `<world>-YYYY-MM-DD.zip` inside it; if a file with the same name already exists, a `-1`, `-2`, … suffix is appended automatically so old backups are never overwritten;
+- a **file path** (existing or not) — the archive is written directly to that path, so you can choose any name. Missing parent directories are created automatically. If the target file already exists, the same `-1`, `-2`, … numbering is applied instead of overwriting.
 
 Note that a non-existent output path is always treated as a filename, never as a directory. To write into a new directory, create it first (e.g. `mkdir -p /path/to/backups`) or use a path ending in a filename.
 

@@ -16,7 +16,12 @@ func Warn(format string, value ...any) {
 	fmt.Fprintf(os.Stdout, "[\033[1;33mWARN\033[0m]: "+format+"\n", value...)
 }
 
-// Error 向标准输出打印红色 ERROR 日志
+// Debug 向标准输出打印蓝色 DEBUG 日志
+func DEBUG(format string, value ...any) {
+	fmt.Fprintf(os.Stdout, "[\033[1;34mDEBUG\033[0m]: "+format+"\n", value...)
+}
+
+// Error 向标准错误打印红色 ERROR 日志
 func Error(format string, value ...any) {
 	fmt.Fprintf(os.Stderr, "[\033[1;31mERROR\033[0m]: "+format+"\n", value...)
 }

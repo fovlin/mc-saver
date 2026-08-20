@@ -1,7 +1,6 @@
 package parse
 
 import (
-	"acovia.net/record"
 	"archive/zip"
 	"errors"
 	"fmt"
@@ -12,22 +11,23 @@ import (
 	"strings"
 )
 
-func SaveOldAllFile(levelDir string, configFile string, zipWriter *zip.Writer, addFile addFile) (err error) {
+// SaveOldAllFile 按旧版单文件夹布局备份：主世界位于存档根目录，下界/末地分别为 DIM-1/DIM1
+func SaveOldAllFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFile addFile) (err error) {
 
-	if err := SaveOldDimensionFile(levelDir, configFile, zipWriter, addFile); err != nil {
+	if err := SaveOldDimensionFile(root, configFile, zipWriter, addFile); err != nil {
 		return err
 	}
 
-	if err := SaveRootDataFile(levelDir, configFile, zipWriter, addFile); err != nil {
+	if err := SaveRootDataFile(root, configFile, zipWriter, addFile); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// SaveDimensionFile 根据配置文件解析各维度的 range/simple 备份规则，
+// SaveOldDimensionFile 按旧版布局解析各维度的 range/simple 备份规则，
 // 将选中的区域文件与各维度 data 目录下的文件逐一写入 zip 压缩包。
-func SaveOldDimensionFile(levelDir string, configFile string, zipWriter *zip.Writer, addFile addFile) error {
+func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFile addFile) error {
 
 	rootSaveRule, err := getRootSaveRule(configFile)
 	if err != nil {
@@ -52,6 +52,7 @@ func SaveOldDimensionFile(levelDir string, configFile string, zipWriter *zip.Wri
 
 		var dimensionRootDirPath string
 
+		// 旧版布局的维度目录映射：主世界为根目录，下界/末地为 DIM-1/DIM1，自定义维度仍用 dimensions/
 		switch namespaceID {
 		case "minecraft:overworld":
 			dimensionRootDirPath = "."
@@ -63,7 +64,7 @@ func SaveOldDimensionFile(levelDir string, configFile string, zipWriter *zip.Wri
 			dimensionRootDirPath = path.Join("dimensions", namespace, dimensionID)
 		}
 
-		_, err := os.Stat(path.Join(levelDir, dimensionRootDirPath))
+		_, err := root.Stat(dimensionRootDirPath)
 		if err != nil {
 			return fmt.Errorf("(read dimension root directory) %w", err)
 		}
@@ -131,13 +132,12 @@ func SaveOldDimensionFile(levelDir string, configFile string, zipWriter *zip.Wri
 						for y := from[1]; y <= to[1]; y += 1 {
 							mcaFileName := "r." + strconv.FormatInt(x, 10) + "." + strconv.FormatInt(y, 10) + ".mca"
 							// 压缩包内以存档名作为顶层目录，保证备份可直接还原为存档
-							regionFilePath := path.Join(levelDir, dimensionRootDirPath, regionDataDir, mcaFileName)
-							regionFileName := path.Join(path.Base(levelDir), dimensionRootDirPath, regionDataDir, mcaFileName)
+							regionFileName := path.Join(dimensionRootDirPath, regionDataDir, mcaFileName)
 
 							// 单个文件出错只记录日志，不中断整个备份（有意为之）
-							err := addFile(regionFileName, regionFilePath, zipWriter)
+							err := addFile(root, regionFileName, zipWriter)
 							if err != nil {
-								record.Error("%v", err)
+								return fmt.Errorf("(write file into archive) %w", err)
 							}
 						}
 					}
@@ -175,41 +175,38 @@ func SaveOldDimensionFile(levelDir string, configFile string, zipWriter *zip.Wri
 
 					mcaFileName := "r." + strconv.FormatInt(x, 10) + "." + strconv.FormatInt(y, 10) + ".mca"
 					// 压缩包内以存档名作为顶层目录，保证备份可直接还原为存档
-					regionFilePath := path.Join(levelDir, dimensionRootDirPath, regionDataDir, mcaFileName)
-					regionFileName := path.Join(path.Base(levelDir), dimensionRootDirPath, regionDataDir, mcaFileName)
+					regionFileName := path.Join(dimensionRootDirPath, regionDataDir, mcaFileName)
 
-					// 单个文件出错只记录日志，不中断整个备份（有意为之）
-					err := addFile(regionFileName, regionFilePath, zipWriter)
+					err := addFile(root, regionFileName, zipWriter)
 					if err != nil {
-						record.Error("%v", err)
+						return fmt.Errorf("(write file into archive) %w", err)
 					}
 				}
 			}
 		}
 
-		// 备份维度 data 目录：磁盘路径用于读取，压缩包内路径保留存档名层级，便于直接还原
-		dimensionDataDirPath := path.Join(levelDir, dimensionRootDirPath, "data")
-		dimensionDataDirName := path.Join(path.Base(levelDir), dimensionRootDirPath, "data")
+		// 备份维度 data 目录：相对路径用于读取，压缩包内路径由 addFile 保留存档名层级，便于直接还原
+		dimensionDataDirName := path.Join(dimensionRootDirPath, "data")
 
 		// 维度数据文件若不存在，跳过，有意为之
-		_, err = os.Stat(dimensionDataDirPath)
+		_, err = root.Stat(dimensionDataDirName)
 		if err == nil {
-			dimensionDataDirSystem := os.DirFS(dimensionDataDirPath)
-			err = fs.WalkDir(dimensionDataDirSystem, ".", func(subFilePath string, d fs.DirEntry, err error) error {
+			dimensionDataRootDir, err := root.OpenRoot(dimensionDataDirName)
+			if err != nil {
+				return err
+			}
+			defer dimensionDataRootDir.Close()
+
+			err = fs.WalkDir(dimensionDataRootDir.FS(), ".", func(subFilePath string, d fs.DirEntry, err error) error {
 				if err != nil {
-					return fmt.Errorf("(open dimension directory) %w", err)
+					return fmt.Errorf("(read dimension directory) %w", err)
 				}
 
-				endFilePath := path.Join(dimensionDataDirPath, subFilePath)
 				dataFileName := path.Join(dimensionDataDirName, subFilePath)
-				subFileStat, err := os.Stat(endFilePath)
 
-				if err != nil {
-					return fmt.Errorf("(read data file) %w", err)
-				}
-
-				if !subFileStat.IsDir() {
-					err := addFile(dataFileName, endFilePath, zipWriter)
+				// 目录由 WalkDir 递归遍历，这里只写入普通文件
+				if !d.IsDir() {
+					err := addFile(root, dataFileName, zipWriter)
 					if err != nil {
 						return fmt.Errorf("(write file into archive) %w", err)
 					}
@@ -217,7 +214,7 @@ func SaveOldDimensionFile(levelDir string, configFile string, zipWriter *zip.Wri
 				return nil
 			})
 			if err != nil {
-				return fmt.Errorf("(read directory) "+dimensionDataDirPath+": %w", err)
+				return fmt.Errorf("(read dimension directory) "+dimensionDataDirName+": %w", err)
 			}
 		}
 	}
