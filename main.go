@@ -191,31 +191,26 @@ func run() {
 		record.Error("(create zip writer) %v", err)
 		os.Exit(1)
 	}
+	
+	defer fileWriter.Close()
+	defer zipWriter.Close()
 
 	if UseLegacyMode {
 		if err := parse.SaveOldAllFile(root, configFilePath, zipWriter, addFile); err != nil {
 			record.Error("(write file into archive) %v", err)
+			zipWriter.Close()
+			fileWriter.Close()
 			os.Remove(fileWriter.Name())
 			os.Exit(1)
 		}
 	} else {
 		if err := parse.SaveAllFile(root, configFilePath, zipWriter, addFile); err != nil {
 			record.Error("(write file into archive) %v", err)
+			zipWriter.Close()
+			fileWriter.Close()
 			os.Remove(fileWriter.Name())
 			os.Exit(1)
 		}
-	}
-
-	if err := zipWriter.Close(); err != nil {
-		record.Error("(close zip writer) %v", err)
-		os.Remove(fileWriter.Name())
-		os.Exit(1)
-	}
-
-	if err := fileWriter.Close(); err != nil {
-		record.Error("(close file writer) %v", err)
-		os.Remove(fileWriter.Name())
-		os.Exit(1)
 	}
 
 	record.Info("Backup completed successfully!")
