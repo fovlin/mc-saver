@@ -190,7 +190,7 @@ func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Write
 
 		// 维度数据文件若不存在，跳过，有意为之
 		_, err = root.Stat(dimensionDataDirName)
-		if err == nil {
+		if !os.IsNotExist(err) {
 			dimensionDataRootDir, err := root.OpenRoot(dimensionDataDirName)
 			if err != nil {
 				return err

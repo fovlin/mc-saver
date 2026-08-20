@@ -49,12 +49,12 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 	}
 
 	// dimension 必须是对象：键为命名空间 ID，值为该维度的备份规则
-	dimensionSaveRule, ok := rootSaveRule["dimension"].(map[string]any)
+	dimensionSaveRuleList, ok := rootSaveRule["dimension"].(map[string]any)
 	if !ok {
 		return errors.New("(parse dimension rule) dimension is not a valid JSON object")
 	}
 
-	for namespaceID, saveRule := range dimensionSaveRule {
+	for namespaceID, dimensionSaveRule := range dimensionSaveRuleList {
 
 		// 使用函数解析维度的命名空间 ID 并拆解为命名空间和 ID
 		namespaceAndID := strings.FieldsFunc(namespaceID, isKeyWord)
@@ -63,7 +63,6 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 		}
 
 		namespace, dimensionID := namespaceAndID[0], namespaceAndID[1]
-
 		dimensionRootDirPath := path.Join("dimensions", namespace, dimensionID)
 
 		// 校验维度目录存在；配置中出现的维度必须有真实目录，否则备份失败
@@ -73,15 +72,15 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 		}
 
 		// 对维度规则对象进行断言，它对应 JSON 文件里命名空间 ID 下的配置
-		saveRule, ok := saveRule.(map[string]any)
+		dimensionSaveRule, ok := dimensionSaveRule.(map[string]any)
 		if !ok {
 			return errors.New("(parse dimension rule) rule for \"" + namespaceID + "\" is not a valid JSON object")
 		}
 
 		// range 规则如果存在，则根据 range 规则进行备份
-		if saveRule["range"] != nil {
+		if dimensionSaveRule["range"] != nil {
 
-			rangeRuleList, ok := saveRule["range"].([]any)
+			rangeRuleList, ok := dimensionSaveRule["range"].([]any)
 			if !ok {
 				return errors.New("(parse range rule) range is not a valid JSON array")
 			}
@@ -146,8 +145,8 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 		}
 
 		// simple 规则如果存在，则根据 simple 规则进行备份
-		if saveRule["simple"] != nil {
-			simpleRuleList, ok := saveRule["simple"].([]any)
+		if dimensionSaveRule["simple"] != nil {
+			simpleRuleList, ok := dimensionSaveRule["simple"].([]any)
 			if !ok {
 				return errors.New("(parse simple rule) simple is not a valid JSON array")
 			}
@@ -188,7 +187,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 
 		// 维度数据文件若不存在，跳过，有意为之
 		_, err = root.Stat(dimensionDataDirName)
-		if err == nil {
+		if !os.IsNotExist(err) {
 			dimensionDataRootDir, err := root.OpenRoot(dimensionDataDirName)
 			if err != nil {
 				return err

@@ -12,7 +12,7 @@ A lightweight Minecraft world backup tool written in Go. It packs a *selected su
 - **Core data support** — include files and folders at the world root, such as `level.dat`, `data`, `datapacks`, and `players`.
 - **Dated ZIP output by default** — archives are named `<world>-YYYY-MM-DD.zip` automatically, and you can also pass any output filename directly.
 - **Cross-platform** — build for Linux, Windows, and macOS (amd64/arm64) with one script.
-- **Simple CLI** — subcommands (`run`, `gencfg`) plus an interactive wizard when no command is given.
+- **Simple CLI** — subcommands (`run`, `gencfg`, `help`, `repl`) plus an interactive wizard when no command is given.
 
 ## Requirements
 
@@ -35,26 +35,42 @@ Or cross-compile for all supported platforms with the included script (outputs g
 
 ## Usage
 
+### Syntax
+
 ```
-# Syntax: flags come before the subcommand
 mc-saver [-c <config file>] [-l] <command> [args...]
 ```
 
-| Command / Flag | Default | Description |
+Flags must be placed before the subcommand; anything after the subcommand is treated as a positional argument.
+
+### Commands
+
+| Command | Defaults | Description |
 | --- | --- | --- |
-| `run` | — | Back up a world. Positional args: `<world>` and `<output>` (see [Output path](#output-path)). |
-| `gencfg` | — | Write a default config file and exit; refuses to overwrite an existing file. Optional positional arg: `<config file>`. |
-| *(no command)* | — | Interactive wizard: prompts for the world directory and output path, and offers to generate a config if missing. |
+| `run` | `world`, `.` | Back up a world. Positional args: `<world>` and `<output>` (see [Output path](#output-path)). |
+| `gencfg` | `save-rule.json` | Write a default config file and exit; refuses to overwrite an existing file. Optional positional arg: `<config file>`. |
+| `help` | — | Print the built-in help text and exit. |
+| `repl` | — | Run the interactive wizard (same as running with no command). |
+| *(no command)* | — | Run the interactive wizard: prompts for the world directory and output path, and offers to generate a config if missing. |
+
+### Flags
+
+| Flag | Default | Description |
+| --- | --- | --- |
 | `-c` | `save-rule.json` | Path to the JSON backup rule file. |
 | `-l` | off | Back up using the legacy single-folder world layout (`DIM-1`/`DIM1`), see [Legacy mode](#legacy-mode--l). |
 
-Flags must be placed before the subcommand; anything after the subcommand is treated as a positional argument.
-
-Examples:
+### Examples
 
 ```bash
 # Interactive wizard: enter the world directory and output path
 ./mc-saver
+
+# Same wizard, explicitly
+./mc-saver repl
+
+# Print the built-in help
+./mc-saver help
 
 # Back up a specific world; dated archive lands in the current directory
 ./mc-saver run /path/to/world
@@ -78,7 +94,15 @@ Examples:
 ./mc-saver -l run /path/to/old_world /path/to/backups
 ```
 
-With no subcommand, `mc-saver` runs an interactive wizard. If the config file is missing it first asks whether to generate a default one; answering `y` (or `Y`) writes it and continues straight into the backup flow, while any other answer exits. It then prompts for the world directory (default `world`) and the output path (default `.`) before backing up.
+### Interactive wizard
+
+With no subcommand (or with `repl`), `mc-saver` walks you through the backup step by step:
+
+1. If the config file (see `-c`, default `save-rule.json`) is missing, it asks whether to generate a default one. Answer `y` (or `Y`) to create it and keep going; the wizard then asks you to confirm (`y`) before continuing. Any other answer exits.
+2. Enter the world directory to back up (default `world`).
+3. Enter the output path (default `.`, see [Output path](#output-path)).
+
+As soon as the last prompt is answered, the backup starts.
 
 ### Output path
 
@@ -170,4 +194,5 @@ The `file` list should only contain root-level entries that the dimension rules 
 ## Notes
 
 - The archive keeps the world's directory structure, including the top-level world folder name, so a backup can be dropped back in as a world save directly.
+- If you run `mc-saver run .` from inside the world folder, files are stored relative to the current directory (like `zip -r archive.zip .`), so entries have no top-level folder name — extract them directly where the world should live.
 - The default config backs up the 3×3 region area from `(-1, -1)` to `(1, 1)` in all three vanilla dimensions — adjust it to match the area you actually play in.
