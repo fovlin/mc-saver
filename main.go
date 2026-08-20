@@ -17,7 +17,6 @@ import (
 	"acovia.net/record"
 )
 
-// 默认配置内容，gencfg 子命令会将其写入指定的规则文件
 var (
 	UseLegacyMode  bool   = false
 	configFilePath string = "save-rule.json"
@@ -57,7 +56,6 @@ var (
 }`
 )
 
-// main 是程序入口：解析命令行参数、校验存档目录，并按规则将选中文件写入 zip 压缩包
 func main() {
 
 	// 定义命令行参数，-c 指定规则文件
