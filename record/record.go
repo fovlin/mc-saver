@@ -17,7 +17,7 @@ func Warn(format string, value ...any) {
 }
 
 // Debug 向标准输出打印蓝色 DEBUG 日志
-func DEBUG(format string, value ...any) {
+func Debug(format string, value ...any) {
 	fmt.Fprintf(os.Stdout, "[\033[1;34mDEBUG\033[0m]: "+format+"\n", value...)
 }
 
