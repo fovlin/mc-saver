@@ -126,7 +126,7 @@ func repl() {
 		record.Error("(verify config file) %v", err)
 		os.Exit(1)
 	}
-	fmt.Printf("please enter level directory path (default is world): ")
+	fmt.Printf("please enter world directory path (default is world): ")
 	if scanner.Scan() {
 		input := scanner.Text()
 		input = strings.ReplaceAll(input, "\\", "/")
@@ -134,7 +134,7 @@ func repl() {
 			worldDirPath = input
 		}
 	}
-	fmt.Printf("please enter output path (defalut is world-$time.zip): ")
+	fmt.Printf("please enter output path (default is world-$time.zip): ")
 	if scanner.Scan() {
 		input := scanner.Text()
 		input = strings.ReplaceAll(input, "\\", "/")
