@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -132,13 +133,19 @@ func repl() {
 		if len(input) != 0 {
 			worldDirPath = input
 		}
+		if absPath, err := filepath.Abs(worldDirPath); err != nil {
+			record.Error("(check world directory path) %v", err)
+			os.Exit(1)
+		} else {
+			worldDirPath = absPath
+		}
 	}
 	fmt.Printf("please enter output path (default is world-$time.zip): ")
 	if scanner.Scan() {
 		input := scanner.Text()
 		input = strings.ReplaceAll(input, "\\", "/")
 		if len(input) != 0 {
-			outputPath = input
+			outputPath = path.Clean(input)
 		}
 	}
 	run()
@@ -161,11 +168,16 @@ func gencfg() {
 func run() {
 
 	if len(flag.Arg(1)) != 0 {
-		worldDirPath = flag.Arg(1)
+		if absPath, err := filepath.Abs(flag.Arg(1)); err != nil {
+			record.Error("(check world directory path) %v", err)
+			os.Exit(1)
+		} else {
+			worldDirPath = absPath
+		}
 	}
 
 	if len(flag.Arg(2)) != 0 {
-		outputPath = flag.Arg(2)
+		outputPath = path.Clean(flag.Arg(2))
 	}
 
 	worldDirPath = strings.ReplaceAll(worldDirPath, "\\", "/")
@@ -176,16 +188,35 @@ func run() {
 		record.Error("%v", err)
 		os.Exit(1)
 	}
-	defer root.Close()
 
-	zipWriter, fileWriter, err := createZipWriter()
+	zipWriter, fileWriter, end, err := createZipWriter()
 	if err != nil {
 		record.Error("%v", err)
 		os.Exit(1)
 	}
+
+	defer func() {
+		if err := root.Close(); err != nil {
+			record.Error("(close root directory) %v", err)
+			os.Exit(1)
+		}
+
+		if err := zipWriter.Close(); err != nil {
+			record.Error("(close zip writer) %v", err)
+			os.Exit(1)
+		}
 	
-	defer fileWriter.Close()
-	defer zipWriter.Close()
+		if err := fileWriter.Close(); err != nil {
+			record.Error("(close file writer) %v", err)
+			os.Exit(1)
+		}
+
+		if err := end(); err != nil {
+			record.Error("%v", err)
+			os.Exit(1)
+		}
+
+	} ()
 
 	if UseLegacyMode {
 		if err := parse.SaveOldAllFile(root, configFilePath, zipWriter, addFile); err != nil {
@@ -209,7 +240,7 @@ func run() {
 
 }
 
-func createZipWriter() (*zip.Writer, *os.File, error) {
+func createZipWriter() (*zip.Writer, *os.File, func() error, error) {
 	var archiveFilePath string
 	outputFileInfo, err := os.Stat(outputPath)
 	switch true {
@@ -217,12 +248,12 @@ func createZipWriter() (*zip.Writer, *os.File, error) {
 	case os.IsNotExist(err):
 		err = os.MkdirAll(path.Dir(outputPath), 0755)
 		if err != nil {
-			return nil, nil, fmt.Errorf("(check output path) %w", err)
+			return nil, nil, nil, fmt.Errorf("(check output path) %w", err)
 		}
 		archiveFilePath = outputPath
 
 	case !os.IsNotExist(err) && err != nil:
-		return nil, nil, fmt.Errorf("(check output path) %w", err)
+		return nil, nil, nil, fmt.Errorf("(check output path) %w", err)
 
 	case outputFileInfo.IsDir():
 		archiveFileName := path.Base(worldDirPath) + "-" + time.Now().Format(time.DateOnly) + ".zip"
@@ -233,14 +264,21 @@ func createZipWriter() (*zip.Writer, *os.File, error) {
 
 	}
 
-	fileWriter, err := os.Create(archiveFilePath)
+	fileWriter, err := os.CreateTemp(path.Dir(archiveFilePath), "archive")
 	if err != nil {
-		return nil, nil, fmt.Errorf("(create archive) %w", err)
+		return nil, nil, nil, fmt.Errorf("(create archive) %w", err)
+	}
+
+	end := func() error {
+		if err := os.Rename(fileWriter.Name(), archiveFilePath); err != nil {
+			return fmt.Errorf("(end archive) %w", err)
+	}
+		return nil
 	}
 
 	w := zip.NewWriter(fileWriter)
 
-	return w, fileWriter, nil
+	return w, fileWriter, end, nil
 
 }
 
@@ -263,7 +301,7 @@ func addFile(root *os.Root, filePath string, zipWriter *zip.Writer) error {
 		return err
 	}
 
-	headerName := path.Join(path.Base(worldDirPath), filePath)
+	headerName := path.Join(path.Base(root.Name()), filePath)
 
 	zipFileHeader.Name = headerName
 	zipFileHeader.Method = zip.Deflate

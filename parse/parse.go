@@ -1,7 +1,6 @@
 package parse
 
 import (
-	"acovia.net/record"
 	"archive/zip"
 	"encoding/json"
 	"errors"
@@ -122,7 +121,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 							regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
 							err := addFile(root, regionFileName, zipWriter)
 							if err != nil {
-								return fmt.Errorf("%w", err)
+								return err
 							}
 						}
 					}
@@ -158,7 +157,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 					regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
 					err := addFile(root, regionFileName, zipWriter)
 					if err != nil {
-						return fmt.Errorf("%w", err)
+						return err
 					}
 				}
 			}
@@ -233,7 +232,7 @@ func SaveRootDataFile(root *os.Root, configFile string, zipWriter *zip.Writer, a
 		case false:
 			err := addFile(root, file, zipWriter)
 			if err != nil {
-				record.Error("%v", err)
+				return err
 			}
 		case true:
 			rootDataRootDir, err := root.OpenRoot(file)
@@ -252,14 +251,14 @@ func SaveRootDataFile(root *os.Root, configFile string, zipWriter *zip.Writer, a
 				if !d.IsDir() {
 					err := addFile(root, fullFilePath, zipWriter)
 					if err != nil {
-						return fmt.Errorf("%w", err)
+						return err
 					}
 				}
 
 				return nil
 			})
 			if err != nil {
-				return fmt.Errorf("(open directory) " + file + ": %w", err)
+				return fmt.Errorf("(open directory) %w", err)
 			}
 		}
 	}
@@ -270,13 +269,13 @@ func getRootSaveRule(configFile string) (map[string]any, error) {
 
 	jsonData, err := os.ReadFile(configFile)
 	if err != nil {
-		return nil, fmt.Errorf("(open config file) unable to read config file \""+configFile+"\": %w", err)
+		return nil, fmt.Errorf("(open config file) %w", err)
 	}
 
 	rootRule := make(map[string]any)
 	err = json.Unmarshal(jsonData, &rootRule)
 	if err != nil {
-		return nil, fmt.Errorf("(parse json data) unable to parse config file \""+configFile+"\": %w", err)
+		return nil, fmt.Errorf("(parse json data) %w", err)
 	}
 
 	return rootRule, nil

@@ -6,7 +6,7 @@ A Minecraft world backup tool written in Go. Based on a JSON rule file, it packs
 
 ## Features
 
-- **Selective backups** — back up only the chunks you care about instead of the whole world, so archives are smaller and faster.
+- **Selective backups** — back up only dimensions and chunks that you care about instead of the whole world, so archives are smaller and faster.
 - **Per-dimension configuration** — configure the overworld (`overworld`), the Nether (`the_nether`), the End (`the_end`), and any custom dimension separately.
 - **Flexible region selection** — use rectangular `range` rules, or `simple` rules to specify individual region coordinates.
 
