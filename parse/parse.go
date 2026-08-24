@@ -122,7 +122,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 							regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
 							err := addFile(root, regionFileName, zipWriter)
 							if err != nil {
-								return fmt.Errorf("(add file) %w", err)
+								return fmt.Errorf("%w", err)
 							}
 						}
 					}
@@ -158,7 +158,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 					regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
 					err := addFile(root, regionFileName, zipWriter)
 					if err != nil {
-						return fmt.Errorf("(add file) %w", err)
+						return fmt.Errorf("%w", err)
 					}
 				}
 			}
@@ -185,7 +185,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 				if !d.IsDir() {
 					err := addFile(root, dataFileName, zipWriter)
 					if err != nil {
-						return fmt.Errorf("(add file) %w", err)
+						return fmt.Errorf("%w", err)
 					}
 				}
 
@@ -252,7 +252,7 @@ func SaveRootDataFile(root *os.Root, configFile string, zipWriter *zip.Writer, a
 				if !d.IsDir() {
 					err := addFile(root, fullFilePath, zipWriter)
 					if err != nil {
-						return fmt.Errorf("(add file) %w", err)
+						return fmt.Errorf("%w", err)
 					}
 				}
 

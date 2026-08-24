@@ -217,12 +217,12 @@ func createZipWriter() (*zip.Writer, *os.File, error) {
 	case os.IsNotExist(err):
 		err = os.MkdirAll(path.Dir(outputPath), 0755)
 		if err != nil {
-			return nil, nil, fmt.Errorf("(create output directory) %w", err)
+			return nil, nil, fmt.Errorf("(check output path) %w", err)
 		}
 		archiveFilePath = outputPath
 
 	case !os.IsNotExist(err) && err != nil:
-		return nil, nil, fmt.Errorf("(verify path) %w", err)
+		return nil, nil, fmt.Errorf("(check output path) %w", err)
 
 	case outputFileInfo.IsDir():
 		archiveFileName := path.Base(worldDirPath) + "-" + time.Now().Format(time.DateOnly) + ".zip"
@@ -271,12 +271,12 @@ func addFile(root *os.Root, filePath string, zipWriter *zip.Writer) error {
 	file, err := zipWriter.CreateHeader(zipFileHeader)
 
 	if err != nil {
-		return fmt.Errorf("(create new file in archive) %w", err)
+		return fmt.Errorf("(create file) %w", err)
 	}
 
 	_, err = io.Copy(file, fileReader)
 	if err != nil {
-		return fmt.Errorf("(write compressed file) %w", err)
+		return fmt.Errorf("(write file) %w", err)
 	}
 
 	record.Info("(added) %s", headerName)
