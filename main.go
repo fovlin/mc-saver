@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -149,20 +148,13 @@ func gencfg() {
 	if flag.Arg(1) != "" {
 		configFilePath = flag.Arg(1)
 	}
-	if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
-		record.Error("(generate default config) %v", errors.New("file \""+configFilePath+"\" existed"))
-		os.Exit(1)
-	} else if !os.IsNotExist(err) && err != nil {
-		record.Error("(verify config file) %v", err)
-		os.Exit(1)
-	}
 
 	err := os.WriteFile(configFilePath, []byte(defaultConfig), 0644)
 	if err != nil {
 		record.Error("%v", err)
 		os.Exit(1)
 	}
-	record.Info("created default config file: %s", configFilePath)
+	record.Info("created config file: %s", configFilePath)
 	os.Exit(0)
 }
 
@@ -181,14 +173,14 @@ func run() {
 
 	root, err := os.OpenRoot(worldDirPath)
 	if err != nil {
-		record.Error("(open level as root directory) %v", err)
+		record.Error("%v", err)
 		os.Exit(1)
 	}
 	defer root.Close()
 
 	zipWriter, fileWriter, err := createZipWriter()
 	if err != nil {
-		record.Error("(create zip writer) %v", err)
+		record.Error("%v", err)
 		os.Exit(1)
 	}
 	
@@ -197,7 +189,7 @@ func run() {
 
 	if UseLegacyMode {
 		if err := parse.SaveOldAllFile(root, configFilePath, zipWriter, addFile); err != nil {
-			record.Error("(write file into archive) %v", err)
+			record.Error("%v", err)
 			zipWriter.Close()
 			fileWriter.Close()
 			os.Remove(fileWriter.Name())
@@ -205,7 +197,7 @@ func run() {
 		}
 	} else {
 		if err := parse.SaveAllFile(root, configFilePath, zipWriter, addFile); err != nil {
-			record.Error("(write file into archive) %v", err)
+			record.Error("%v", err)
 			zipWriter.Close()
 			fileWriter.Close()
 			os.Remove(fileWriter.Name())
@@ -219,7 +211,6 @@ func run() {
 
 func createZipWriter() (*zip.Writer, *os.File, error) {
 	var archiveFilePath string
-	archiveFileName := path.Base(worldDirPath) + "-" + time.Now().Format(time.DateOnly) + ".zip"
 	outputFileInfo, err := os.Stat(outputPath)
 	switch true {
 
@@ -234,25 +225,12 @@ func createZipWriter() (*zip.Writer, *os.File, error) {
 		return nil, nil, fmt.Errorf("(verify path) %w", err)
 
 	case outputFileInfo.IsDir():
+		archiveFileName := path.Base(worldDirPath) + "-" + time.Now().Format(time.DateOnly) + ".zip"
 		archiveFilePath = path.Join(outputPath, archiveFileName)
 
 	default:
 		archiveFilePath = outputPath
 
-	}
-
-	if _, err := os.Stat(archiveFilePath); !os.IsNotExist(err) && err == nil {
-		archiveFileExt := path.Ext(archiveFilePath)
-		archiveFileNoExt, _ := strings.CutSuffix(archiveFilePath, archiveFileExt)
-		for n := 1; ; n++ {
-			suffix := "-" + strconv.Itoa(n)
-			if _, err := os.Stat(archiveFileNoExt + suffix + archiveFileExt); os.IsNotExist(err) {
-				archiveFilePath = archiveFileNoExt + suffix + archiveFileExt
-				break
-			}
-		}
-	} else if !os.IsNotExist(err) && err != nil {
-		return nil, nil, err
 	}
 
 	fileWriter, err := os.Create(archiveFilePath)
