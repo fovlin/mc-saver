@@ -58,9 +58,10 @@ func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Write
 			dimensionRootDirPath = path.Join("dimensions", namespace, dimensionID)
 		}
 
-		_, err := root.Stat(dimensionRootDirPath)
-		if err != nil {
+		if dimensionRootDirStat, err := root.Stat(dimensionRootDirPath); err != nil {
 			return fmt.Errorf("(open dimension root directory) %w", err)
+		} else if !dimensionRootDirStat.IsDir() {
+			return fmt.Errorf("(open dimension root directory) %v: %w", dimensionRootDirPath, errors.New("not a directory"))
 		}
 
 		saveRule, ok := saveRule.(map[string]any)
@@ -99,7 +100,7 @@ func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Write
 				for _, number := range jsonFrom {
 					jsonFromValue, ok := number.(float64)
 					if !ok {
-						return errors.New("(parse \"from\" rule) \"from\" contains a value that is not a number")
+						return errors.New("(parse \"from\" rule) \"from\" contains elements not a number")
 					}
 					from = append(from, int64(jsonFromValue))
 				}
@@ -110,7 +111,7 @@ func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Write
 				for _, number := range jsonTo {
 					jsonToValue, ok := number.(float64)
 					if !ok {
-						return errors.New("(parse \"to\" rule) \"to\" contains a value that is not a number")
+						return errors.New("(parse \"to\" rule) \"to\" contains elements not a number")
 					}
 					to = append(to, int64(jsonToValue))
 				}
@@ -138,7 +139,7 @@ func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Write
 		if saveRule["simple"] != nil {
 			simpleRuleList, ok := saveRule["simple"].([]any)
 			if !ok {
-				return errors.New("(parse \"simple\" rule) \"simple\" is not a valid JSON array")
+				return errors.New("(parse \"simple\" rule) \"simple\" not a valid JSON array")
 			}
 
 			// simple 规则：按给定坐标逐一写入三个区域目录中的文件
@@ -148,7 +149,7 @@ func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Write
 					// 对规则进行断言，取出 x，y 坐标，判断是否为数组并且长度为2
 					simpleRule, ok := simpleRule.([]any)
 					if !ok {
-						return errors.New("(verify \"simple\" rule) \"simple\" entry is not a valid JSON array")
+						return errors.New("(verify \"simple\" rule) \"simple\" entry not a valid JSON array")
 					}
 					if len(simpleRule) != 2 {
 						return errors.New("(verify \"simple\" rule) \"simple\" entry at index " + strconv.Itoa(simpleRuleIndex) + " must be an array of length 2")
@@ -159,7 +160,7 @@ func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Write
 					jsonY, Index2ok := simpleRule[1].(float64)
 					y := int64(jsonY)
 					if !Index1ok || !Index2ok {
-						return errors.New("(verify \"simple\" rule) \"simple\" contains a value that is not a number")
+						return errors.New("(verify \"simple\" rule) \"simple\" contains elements is not a number")
 					}
 
 					mcaFileName := "r." + strconv.FormatInt(x, 10) + "." + strconv.FormatInt(y, 10) + ".mca"

@@ -57,9 +57,10 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 		namespace, dimensionID := namespaceAndID[0], namespaceAndID[1]
 		dimensionRootDirPath := path.Join("dimensions", namespace, dimensionID)
 
-		_, err := root.Stat(dimensionRootDirPath)
-		if err != nil {
+		if dimensionRootDirStat, err := root.Stat(dimensionRootDirPath); err != nil {
 			return fmt.Errorf("(open dimension root directory) %w", err)
+		} else if !dimensionRootDirStat.IsDir() {
+			return fmt.Errorf("(open dimension root directory) %v: %w", dimensionRootDirPath, errors.New("not a directory"))
 		}
 
 		dimensionSaveRule, ok := dimensionSaveRule.(map[string]any)
@@ -96,7 +97,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 				for _, number := range jsonFrom {
 					jsonFromValue, ok := number.(float64)
 					if !ok {
-						return errors.New("(parse \"from\" rule) \"from\" contains a value that is not a number")
+						return errors.New("(parse \"from\" rule) \"from\" contains elements not a number")
 					}
 					from = append(from, int64(jsonFromValue))
 				}
@@ -107,7 +108,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 				for _, number := range jsonTo {
 					jsonToValue, ok := number.(float64)
 					if !ok {
-						return errors.New("(parse \"to\" rule) \"to\" contains a value that is not a number")
+						return errors.New("(parse \"to\" rule) \"to\" contains elements not a number")
 					}
 					to = append(to, int64(jsonToValue))
 				}
@@ -132,7 +133,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 		if dimensionSaveRule["simple"] != nil {
 			simpleRuleList, ok := dimensionSaveRule["simple"].([]any)
 			if !ok {
-				return errors.New("(parse \"simple\" rule) \"simple\" is not a valid JSON array")
+				return errors.New("(parse \"simple\" rule) \"simple\" not a valid JSON array")
 			}
 
 			for _, regionDataDir := range rootFile {
@@ -140,7 +141,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 
 					simpleRule, ok := simpleRule.([]any)
 					if !ok {
-						return errors.New("(parse \"simple\" rule) \"simple\" entry is not a valid JSON array")
+						return errors.New("(parse \"simple\" rule) \"simple\" entry not a valid JSON array")
 					}
 					if len(simpleRule) != 2 {
 						return errors.New("(parse \"simple\" rule) \"simple\" entry at index " + strconv.Itoa(simpleRuleIndex) + " must be an array of length 2")
@@ -151,7 +152,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 					jsonY, Index2ok := simpleRule[1].(float64)
 					y := int64(jsonY)
 					if !Index1ok || !Index2ok {
-						return errors.New("(parse \"simple\" rule) \"simple\" contains a value that is not a number")
+						return errors.New("(parse \"simple\" rule) \"simple\" contains elements is not a number")
 					}
 
 					regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
@@ -212,14 +213,14 @@ func SaveRootDataFile(root *os.Root, configFile string, zipWriter *zip.Writer, a
 
 	fileList, ok := fileRule.([]any)
 	if !ok {
-		return errors.New("(parse \"file\" rule) file is not a valid JSON array")
+		return errors.New("(parse \"file\" rule) \"file\" not a valid JSON array")
 	}
 
 	for _, file := range fileList {
 
 		file, ok := file.(string)
 		if !ok {
-			return errors.New("(parse \"file\" rule) file contains a value that is not a string")
+			return errors.New("(parse \"file\" rule) \"file\" contains elements not a string")
 		}
 
 		fileStat, err := root.Stat(file)

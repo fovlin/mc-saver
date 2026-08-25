@@ -185,7 +185,7 @@ func run() {
 
 	root, err := os.OpenRoot(worldDirPath)
 	if err != nil {
-		record.Error("%v", err)
+		record.Error("(open world directory) %v", err)
 		os.Exit(1)
 	}
 
@@ -267,6 +267,10 @@ func createZipWriter() (*zip.Writer, *os.File, func() error, error) {
 	fileWriter, err := os.CreateTemp(path.Dir(archiveFilePath), "archive")
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("(create archive) %w", err)
+	}
+
+	if err = fileWriter.Chmod(0655); err != nil {
+		return nil, nil, nil, fmt.Errorf("(empower archive) %w", err)
 	}
 
 	end := func() error {
