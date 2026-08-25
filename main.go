@@ -205,7 +205,7 @@ func run() {
 			record.Error("(close zip writer) %v", err)
 			os.Exit(1)
 		}
-	
+
 		if err := fileWriter.Close(); err != nil {
 			record.Error("(close file writer) %v", err)
 			os.Exit(1)
@@ -216,7 +216,7 @@ func run() {
 			os.Exit(1)
 		}
 
-	} ()
+	}()
 
 	if UseLegacyMode {
 		if err := parse.SaveOldAllFile(root, configFilePath, zipWriter, addFile); err != nil {
@@ -276,7 +276,7 @@ func createZipWriter() (*zip.Writer, *os.File, func() error, error) {
 	end := func() error {
 		if err := os.Rename(fileWriter.Name(), archiveFilePath); err != nil {
 			return fmt.Errorf("(end archive) %w", err)
-	}
+		}
 		return nil
 	}
 
