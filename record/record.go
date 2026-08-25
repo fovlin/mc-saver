@@ -25,3 +25,20 @@ func Debug(format string, value ...any) {
 func Error(format string, value ...any) {
 	fmt.Fprintf(os.Stderr, "[\033[1;31mERROR\033[0m]: "+format+"\n", value...)
 }
+
+func InfoNoWrap(format string, value ...any) {
+	fmt.Fprintf(os.Stdout, "[\033[1;32mINFO\033[0m]: "+format, value...)
+}
+
+func Wrap() {
+	fmt.Fprintf(os.Stdout, "\n")
+}
+
+func RunningInfo(run func() error, format string, value ...any) error {
+	InfoNoWrap(format, value...)
+	defer Wrap()
+	if err := run(); err != nil {
+		return err
+	}
+	return nil
+}

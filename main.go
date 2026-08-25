@@ -216,6 +216,8 @@ func run() {
 			os.Exit(1)
 		}
 
+		record.Info("Backup completed successfully!")
+
 	}()
 
 	if UseLegacyMode {
@@ -235,9 +237,6 @@ func run() {
 			os.Exit(1)
 		}
 	}
-
-	record.Info("Backup completed successfully!")
-
 }
 
 func createZipWriter() (*zip.Writer, *os.File, func() error, error) {
@@ -316,12 +315,15 @@ func addFile(root *os.Root, filePath string, zipWriter *zip.Writer) error {
 		return fmt.Errorf("(create file) %w", err)
 	}
 
-	_, err = io.Copy(file, fileReader)
-	if err != nil {
-		return fmt.Errorf("(write file) %w", err)
+	if err = record.RunningInfo(func() error {
+		_, err = io.Copy(file, fileReader)
+		if err != nil {
+			return fmt.Errorf("(write file) %w", err)
+		}
+		return nil
+	}, "adding %v", headerName); err != nil {
+		return err
 	}
-
-	record.Info("(added) %s", headerName)
 
 	return nil
 
