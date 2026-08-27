@@ -157,7 +157,7 @@ func gencfg() {
 	}
 
 	if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
-		record.Error("(generate config file) file \"%v\" existed", configFilePath)
+		record.Error("(generate config file) file \"%v\" already exists", configFilePath)
 		os.Exit(1)
 	}
 
