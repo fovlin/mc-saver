@@ -156,6 +156,11 @@ func gencfg() {
 		configFilePath = flag.Arg(1)
 	}
 
+	if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
+		record.Error("(generate config file) file \"%v\" existed", configFilePath)
+		os.Exit(1)
+	}
+
 	err := os.WriteFile(configFilePath, []byte(defaultConfig), 0644)
 	if err != nil {
 		record.Error("%v", err)
