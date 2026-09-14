@@ -26,12 +26,12 @@ func Error(value ...any) {
 func Debug(value ...any) {
 	fmt.Fprint(os.Stdout, "[\033[1;34m" + time.Now().Format(time.DateTime) + " \033[1;34mDebug\033[0m]: ")
 	fmt.Println(value...)
+	os.Exit(1)
 }
 
-func ErrorExit(value ...any) {
+func ErrorNoExit(value ...any) {
 	fmt.Fprint(os.Stderr, "[\033[1;34m" + time.Now().Format(time.DateTime) + " \033[1;31mERROR\033[0m]: ")
 	fmt.Println(value...)
-	os.Exit(1)
 }
 
 func InfoNoWrap(format string, value ...any) {
