@@ -1,4 +1,5 @@
 #!/bin/bash
+mkdir -p build
 rm -r build/mc-saver*
 
 export GOARCH=amd64

@@ -12,6 +12,21 @@ import (
 	"strings"
 )
 
+type RootRule struct {
+	Dimension map[string]DimensionRule `json:"dimension"`
+	File      []string                 `json:"file"`
+}
+
+type DimensionRule struct {
+	Range  []RangeRule `json:"range"`
+	Simple [][2]int    `json:"simple"`
+}
+
+type RangeRule struct {
+	From [2]int `json:"from"`
+	To   [2]int `json:"to"`
+}
+
 var (
 	rootFile = []string{
 		"region",
@@ -37,17 +52,12 @@ type addFile func(root *os.Root, fileName string, zipWriter *zip.Writer) error
 
 func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFile addFile) error {
 
-	rootSaveRule, err := getRootSaveRule(configFile)
+	rootRule, err := LoadRootSaveRule(configFile)
 	if err != nil {
 		return err
 	}
 
-	dimensionSaveRuleList, ok := rootSaveRule["dimension"].(map[string]any)
-	if !ok {
-		return errors.New("(parse \"dimension\" rule) \"dimension\" is not a valid JSON object")
-	}
-
-	for namespaceID, dimensionSaveRule := range dimensionSaveRuleList {
+	for namespaceID, dimensionRule := range rootRule.Dimension {
 
 		namespaceAndID := strings.FieldsFunc(namespaceID, isKeyWord)
 		if len(namespaceAndID) != 2 {
@@ -63,109 +73,31 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 			return fmt.Errorf("(open dimension root directory) %v: %w", dimensionRootDirPath, errors.New("not a directory"))
 		}
 
-		dimensionSaveRule, ok := dimensionSaveRule.(map[string]any)
-		if !ok {
-			return errors.New("(parse \"dimension\" rule) rule of \"" + namespaceID + "\" is not a valid JSON object")
-		}
-
-		if dimensionSaveRule["range"] != nil {
-
-			rangeRuleList, ok := dimensionSaveRule["range"].([]any)
-			if !ok {
-				return errors.New("(parse \"range\" rule) \"range\" is not a valid JSON array")
-			}
-
-			for rangeRuleIndex, rangeRule := range rangeRuleList {
-				rangeRule, ok := rangeRule.(map[string]any)
-				if !ok {
-					return errors.New("(parse \"range\" rule) \"range\" entry at index " + strconv.Itoa(rangeRuleIndex) + " is not a valid JSON object")
-				}
-
-				jsonFrom, ok := rangeRule["from"].([]any)
-				if !ok {
-					return errors.New("(parse \"from\" rule) \"from\" is not a valid JSON array in range entry at index " + strconv.Itoa(rangeRuleIndex))
-				}
-
-				jsonTo, ok := rangeRule["to"].([]any)
-				if !ok {
-					return errors.New("(parse \"to\" rule) \"to\" is not a valid JSON array in range entry at index " + strconv.Itoa(rangeRuleIndex))
-				}
-
-				var from []int64
-				var to []int64
-
-				for _, number := range jsonFrom {
-					jsonFromValue, ok := number.(float64)
-					if !ok {
-						return errors.New("(parse \"from\" rule) \"from\" contains elements not a number")
-					}
-					from = append(from, int64(jsonFromValue))
-				}
-				if len(from) != 2 {
-					return errors.New("(parse \"from\" rule) \"from\" must be an array of length 2")
-				}
-
-				for _, number := range jsonTo {
-					jsonToValue, ok := number.(float64)
-					if !ok {
-						return errors.New("(parse \"to\" rule) \"to\" contains elements not a number")
-					}
-					to = append(to, int64(jsonToValue))
-				}
-				if len(to) != 2 {
-					return errors.New("(parse \"to\" rule) \"to\" must be an array of length 2")
-				}
-
-				for _, regionDataDir := range rootFile {
-					for x := from[0]; x <= to[0]; x += 1 {
-						for y := from[1]; y <= to[1]; y += 1 {
-							regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
-							err := addFile(root, regionFileName, zipWriter)
-							if err != nil {
-								return err
-							}
+		for _, rangeRule := range dimensionRule.Range {
+			for _, regionDataDir := range rootFile {
+				for x := rangeRule.From[0]; x <= rangeRule.To[0]; x += 1 {
+					for y := rangeRule.From[1]; y <= rangeRule.To[1]; y += 1 {
+						regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
+						err := addFile(root, regionFileName, zipWriter)
+						if err != nil {
+							return err
 						}
 					}
 				}
 			}
 		}
 
-		if dimensionSaveRule["simple"] != nil {
-			simpleRuleList, ok := dimensionSaveRule["simple"].([]any)
-			if !ok {
-				return errors.New("(parse \"simple\" rule) \"simple\" not a valid JSON array")
-			}
-
-			for _, regionDataDir := range rootFile {
-				for simpleRuleIndex, simpleRule := range simpleRuleList {
-
-					simpleRule, ok := simpleRule.([]any)
-					if !ok {
-						return errors.New("(parse \"simple\" rule) \"simple\" entry not a valid JSON array")
-					}
-					if len(simpleRule) != 2 {
-						return errors.New("(parse \"simple\" rule) \"simple\" entry at index " + strconv.Itoa(simpleRuleIndex) + " must be an array of length 2")
-					}
-
-					jsonX, Index1ok := simpleRule[0].(float64)
-					x := int64(jsonX)
-					jsonY, Index2ok := simpleRule[1].(float64)
-					y := int64(jsonY)
-					if !Index1ok || !Index2ok {
-						return errors.New("(parse \"simple\" rule) \"simple\" contains elements is not a number")
-					}
-
-					regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
-					err := addFile(root, regionFileName, zipWriter)
-					if err != nil {
-						return err
-					}
+		for _, regionDataDir := range rootFile {
+			for _, simpleRule := range dimensionRule.Simple {
+				regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, simpleRule[0], simpleRule[1])
+				err := addFile(root, regionFileName, zipWriter)
+				if err != nil {
+					return err
 				}
 			}
 		}
 
 		dimensionDataDirName := path.Join("dimensions", namespace, dimensionID, "data")
-
 		_, err = root.Stat(dimensionDataDirName)
 		if !os.IsNotExist(err) {
 			dimensionDataRootDir, err := root.OpenRoot(dimensionDataDirName)
@@ -201,27 +133,12 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 
 func SaveRootDataFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFile addFile) error {
 
-	rootRule, err := getRootSaveRule(configFile)
+	rootRule, err := LoadRootSaveRule(configFile)
 	if err != nil {
 		return err
 	}
 
-	fileRule, ok := rootRule["file"]
-	if !ok {
-		return nil
-	}
-
-	fileList, ok := fileRule.([]any)
-	if !ok {
-		return errors.New("(parse \"file\" rule) \"file\" not a valid JSON array")
-	}
-
-	for _, file := range fileList {
-
-		file, ok := file.(string)
-		if !ok {
-			return errors.New("(parse \"file\" rule) \"file\" contains elements not a string")
-		}
+	for _, file := range rootRule.File {
 
 		fileStat, err := root.Stat(file)
 		if err != nil {
@@ -266,22 +183,6 @@ func SaveRootDataFile(root *os.Root, configFile string, zipWriter *zip.Writer, a
 	return nil
 }
 
-func getRootSaveRule(configFile string) (map[string]any, error) {
-
-	jsonData, err := os.ReadFile(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("(open config file) %w", err)
-	}
-
-	rootRule := make(map[string]any)
-	err = json.Unmarshal(jsonData, &rootRule)
-	if err != nil {
-		return nil, fmt.Errorf("(parse json data) %w", err)
-	}
-
-	return rootRule, nil
-}
-
 func isKeyWord(char rune) bool {
 	if char == rune(":"[0]) {
 		return true
@@ -290,8 +191,25 @@ func isKeyWord(char rune) bool {
 	}
 }
 
-func formatRegionFilePath(dimensionRootDirPath string, regionDataDir string, x int64, y int64) string {
-	regionFileName := "r." + strconv.FormatInt(x, 10) + "." + strconv.FormatInt(y, 10) + ".mca"
+func formatRegionFilePath(dimensionRootDirPath string, regionDataDir string, x int, y int) string {
+	regionFileName := "r." + strconv.FormatInt(int64(x), 10) + "." + strconv.FormatInt(int64(y), 10) + ".mca"
 	regionFilePath := path.Join(dimensionRootDirPath, regionDataDir, regionFileName)
 	return regionFilePath
+}
+
+func LoadRootSaveRule(configFile string) (RootRule, error) {
+
+	jsonData, err := os.ReadFile(configFile)
+	if err != nil {
+		return RootRule{}, err
+	}
+
+	var rootRule RootRule
+	err = json.Unmarshal(jsonData, &rootRule)
+	if err != nil {
+		return RootRule{}, err
+	}
+
+	return rootRule, nil
+
 }
