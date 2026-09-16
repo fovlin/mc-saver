@@ -1,51 +1,68 @@
-// Package record 提供带颜色的控制台日志输出（INFO/WARN/ERROR）。
 package record
 
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
+const (
+	Red = 31 + iota
+	Green
+	Yellow
+	Blue
+)
+
+func wrapColor(color int, value ...any) string {
+	return fmt.Sprintf("\033[1;%vm", color) + fmt.Sprint(value...) + "\033[1;0m"
+}
+
+func wrapLog(value ...any) string {
+	return "[" + fmt.Sprint(value...) + "]: "
+}
 
 func Info(value ...any) {
-	fmt.Fprint(os.Stdout, "[\033[1;34m" + time.Now().Format(time.DateTime) + " \033[1;32mINFO\033[0m]: ")
+	arr := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Green, "INFO")}
+	fmt.Fprint(os.Stdout, wrapLog(strings.Join(arr, " ")))
 	fmt.Println(value...)
 }
 
 func Warn(value ...any) {
-	fmt.Fprint(os.Stdout, "[\033[1;34m" + time.Now().Format(time.DateTime) + " \033[1;33mWARN\033[0m]: ")
+	arr := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Yellow, "WARN")}
+	fmt.Fprint(os.Stdout, wrapLog(strings.Join(arr, " ")))
 	fmt.Println(value...)
 }
+
 
 func Error(value ...any) {
-	fmt.Fprint(os.Stderr, "[\033[1;34m" + time.Now().Format(time.DateTime) + " \033[1;31mERROR\033[0m]: ")
-	fmt.Println(value...)
-}
-
-func Debug(value ...any) {
-	fmt.Fprint(os.Stdout, "[\033[1;34m" + time.Now().Format(time.DateTime) + " \033[1;34mDebug\033[0m]: ")
-	fmt.Println(value...)
+	arr := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Red, "ERROR")}
+	fmt.Fprint(os.Stderr, wrapLog(strings.Join(arr, " ")))
+	fmt.Fprintln(os.Stderr, value...)
 	os.Exit(1)
 }
 
-func ErrorNoExit(value ...any) {
-	fmt.Fprint(os.Stderr, "[\033[1;34m" + time.Now().Format(time.DateTime) + " \033[1;31mERROR\033[0m]: ")
-	fmt.Println(value...)
+func Debug(value ...any) {
+	arr := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Blue, "DEBUG")}
+	fmt.Fprint(os.Stdout, wrapLog(strings.Join(arr, " ")))
+	fmt.Fprintln(os.Stdout, value...)
 }
 
-func InfoNoWrap(format string, value ...any) {
-	fmt.Fprint(os.Stdout, "[\033[1;34m" + time.Now().Format(time.DateTime) + " \033[1;32mINFO\033[0m]: ")
+func ErrorNoExit(value ...any) {
+	arr := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Red, "ERROR")}
+	fmt.Fprint(os.Stderr, wrapLog(strings.Join(arr, " ")))
+	fmt.Fprintln(os.Stderr, value...)
+}
+
+func InfoNoWrap(value ...any) {
+	arr := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Green, "INFO")}
+	fmt.Fprint(os.Stdout, wrapLog(strings.Join(arr, " ")))
 	fmt.Fprint(os.Stdout, value...)
 }
 
-func Wrap() {
-	fmt.Fprintf(os.Stdout, "\n")
-}
-
-func RunningInfo(run func() error, format string, value ...any) error {
-	InfoNoWrap(format, value...)
-	defer Wrap()
+func RunningInfo(run func() error, value ...any) error {
+	InfoNoWrap(value...)
+	defer fmt.Fprintf(os.Stdout, "\n")
 	if err := run(); err != nil {
 		return err
 	}

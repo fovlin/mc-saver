@@ -59,7 +59,7 @@ var (
 )
 
 func main() {
-	
+
 	flag.StringVar(&configFilePath, "c", configFilePath, "config file path")
 	flag.BoolFunc("l", "legacy world mode", func(s string) error {
 		UseLegacyMode = true
@@ -71,8 +71,7 @@ func main() {
 
 	function, ok := cmdMap[flag.Arg(0)]
 	if !ok {
-		record.Error(errors.New("\""+flag.Arg(0)+"\" command not found"))
-		os.Exit(1)
+		record.Error(errors.New("\"" + flag.Arg(0) + "\" command not found"))
 	}
 
 	function()
@@ -111,7 +110,6 @@ func repl() {
 			err := os.WriteFile(configFilePath, []byte(defaultConfig), 0644)
 			if err != nil {
 				record.Error(err)
-				os.Exit(1)
 			}
 			record.Info("created default config file:", configFilePath)
 			fmt.Printf("continue with default config file? (y/n): ")
@@ -124,7 +122,6 @@ func repl() {
 		}
 	} else if !os.IsNotExist(err) && err != nil {
 		record.Error("verify config file:", err)
-		os.Exit(1)
 	}
 	fmt.Printf("world directory path (default is world): ")
 	if scanner.Scan() {
@@ -135,7 +132,6 @@ func repl() {
 		}
 		if absPath, err := filepath.Abs(worldDirPath); err != nil {
 			record.Error("check world directory path):", err)
-			os.Exit(1)
 		} else {
 			worldDirPath = absPath
 		}
@@ -158,13 +154,11 @@ func gencfg() {
 
 	if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
 		record.Error("generate config file:", "\"%v\"", "already exists", configFilePath)
-		os.Exit(1)
 	}
 
 	err := os.WriteFile(configFilePath, []byte(defaultConfig), 0644)
 	if err != nil {
 		record.Error(err)
-		os.Exit(1)
 	}
 	record.Info("created config file:", configFilePath)
 	os.Exit(0)
@@ -175,7 +169,6 @@ func run() {
 	if len(flag.Arg(1)) != 0 {
 		if absPath, err := filepath.Abs(flag.Arg(1)); err != nil {
 			record.Error("check world directory path:", err)
-			os.Exit(1)
 		} else {
 			worldDirPath = absPath
 		}
@@ -191,60 +184,32 @@ func run() {
 	root, err := os.OpenRoot(worldDirPath)
 	if err != nil {
 		record.Error("open world directory:", err)
-		os.Exit(1)
 	}
 
-	zipWriter, fileWriter, end, err := createZipWriter()
+	zipWriter, _, end, err := createZipWriter()
 	if err != nil {
-		record.Error(err)
-		os.Exit(1)
+		record.Error("create zip writer:", err)
 	}
 
-	defer func() {
-		if err := root.Close(); err != nil {
-			record.Error("close root directory:", err)
-			os.Exit(1)
-		}
-
-		if err := zipWriter.Close(); err != nil {
-			record.Error("close zip writer:", err)
-			os.Exit(1)
-		}
-
-		if err := fileWriter.Close(); err != nil {
-			record.Error("close file writer:", err)
-			os.Exit(1)
-		}
-
-		if err := end(); err != nil {
-			record.Error(err)
-			os.Exit(1)
-		}
-
-		record.Info("backup completed successfully!")
-
-	}()
+	defer end(err)
 
 	if UseLegacyMode {
 		if err := parse.SaveOldAllFile(root, configFilePath, zipWriter, addFile); err != nil {
-			record.Error(err)
-			zipWriter.Close()
-			fileWriter.Close()
-			os.Remove(fileWriter.Name())
-			os.Exit(1)
+			if err := end(err); err != nil {
+				record.Error(err)
+			}
 		}
 	} else {
 		if err := parse.SaveAllFile(root, configFilePath, zipWriter, addFile); err != nil {
-			record.Error(err)
-			zipWriter.Close()
-			fileWriter.Close()
-			os.Remove(fileWriter.Name())
-			os.Exit(1)
+			if err := end(err); err != nil {
+				record.Error(err)
+			}
 		}
 	}
 }
 
-func createZipWriter() (*zip.Writer, *os.File, func() error, error) {
+func createZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
+
 	var archiveFilePath string
 	outputFileInfo, err := os.Stat(outputPath)
 	switch true {
@@ -252,12 +217,12 @@ func createZipWriter() (*zip.Writer, *os.File, func() error, error) {
 	case os.IsNotExist(err):
 		err = os.MkdirAll(path.Dir(outputPath), 0755)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("(check output path) %w", err)
+			return nil, nil, nil, err
 		}
 		archiveFilePath = outputPath
 
 	case !os.IsNotExist(err) && err != nil:
-		return nil, nil, nil, fmt.Errorf("(check output path) %w", err)
+		return nil, nil, nil, err
 
 	case outputFileInfo.IsDir():
 		archiveFileName := path.Base(worldDirPath) + "-" + time.Now().Format(time.DateOnly) + ".zip"
@@ -267,25 +232,46 @@ func createZipWriter() (*zip.Writer, *os.File, func() error, error) {
 		archiveFilePath = outputPath
 	}
 
-	fileWriter, err := os.CreateTemp(path.Dir(archiveFilePath), "archive")
+	file, err := os.CreateTemp(path.Dir(archiveFilePath), "archive")
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("(create archive) %w", err)
+		return nil, nil, nil, err
 	}
 
-	if err = fileWriter.Chmod(0655); err != nil {
-		return nil, nil, nil, fmt.Errorf("(change archive permission) %w", err)
+	if err = file.Chmod(0655); err != nil {
+		return nil, nil, nil, err
 	}
 
-	end := func() error {
-		if err := os.Rename(fileWriter.Name(), archiveFilePath); err != nil {
-			return fmt.Errorf("(end archive) %w", err)
+	zipWriter := zip.NewWriter(file)
+
+	end := func(err error) error {
+
+		if err != nil {
+			os.Remove(file.Name())
+			return err
 		}
+
+		if err := os.Rename(file.Name(), archiveFilePath); err != nil {
+			os.Remove(file.Name())
+			return err
+		}
+
+		if err := zipWriter.Close(); err != nil {
+			os.Remove(file.Name())
+			return err
+		}
+
+		if err := file.Close(); err != nil {
+			os.Remove(file.Name())
+			return err
+		}
+
+		record.Info("backup completed successfully!")
+
 		return nil
+
 	}
 
-	w := zip.NewWriter(fileWriter)
-
-	return w, fileWriter, end, nil
+	return zipWriter, file, end, nil
 
 }
 
@@ -325,7 +311,7 @@ func addFile(root *os.Root, filePath string, zipWriter *zip.Writer) error {
 			return fmt.Errorf("(write file) %w", err)
 		}
 		return nil
-	}, "adding %v", headerName); err != nil {
+	}, "adding", headerName); err != nil {
 		return err
 	}
 
