@@ -302,7 +302,6 @@ func addSubfixBeforeExt(archiveFilePath string) (string, error) {
 		for _, ext := range nameArr[1:] {
 			archiveFilePath += "." + ext
 		}
-		record.Debug(archiveFilePath)
 		stat, err := os.Stat(archiveFilePath)
 		if os.IsNotExist(err) {
 			break
