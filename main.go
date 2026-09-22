@@ -60,18 +60,21 @@ var (
 
 func main() {
 
+	record.EnableColor = true
+	
 	flag.StringVar(&configFilePath, "c", configFilePath, "config file path")
 	flag.BoolFunc("l", "legacy world mode", func(s string) error {
 		UseLegacyMode = true
 		return nil
 	})
+
 	flag.Parse()
 
 	configFilePath = strings.ReplaceAll(configFilePath, "\\", "/")
 
 	function, ok := cmdMap[flag.Arg(0)]
 	if !ok {
-		record.Error(errors.New("\"" + flag.Arg(0) + "\" command not found"))
+		record.Error(errors.New("\""+flag.Arg(0)+"\" command not found"))
 	}
 
 	function()
@@ -168,7 +171,7 @@ func run() {
 
 	if len(flag.Arg(1)) != 0 {
 		if absPath, err := filepath.Abs(flag.Arg(1)); err != nil {
-			record.Error("check world directory path:", err)
+			record.Error("check world directory:", err)
 		} else {
 			worldDirPath = absPath
 		}
@@ -190,7 +193,7 @@ func run() {
 	if err != nil {
 		record.Error("create zip writer:", err)
 	}
-
+	
 	defer end(err)
 
 	if UseLegacyMode {
@@ -210,26 +213,9 @@ func run() {
 
 func createZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
 
-	var archiveFilePath string
-	outputFileInfo, err := os.Stat(outputPath)
-	switch true {
-
-	case os.IsNotExist(err):
-		err = os.MkdirAll(path.Dir(outputPath), 0755)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		archiveFilePath = outputPath
-
-	case !os.IsNotExist(err) && err != nil:
+	archiveFilePath, err := formatOutPutPath(outputPath)
+	if err != nil {
 		return nil, nil, nil, err
-
-	case outputFileInfo.IsDir():
-		archiveFileName := path.Base(worldDirPath) + "-" + time.Now().Format(time.DateOnly) + ".zip"
-		archiveFilePath = path.Join(outputPath, archiveFileName)
-
-	default:
-		archiveFilePath = outputPath
 	}
 
 	file, err := os.CreateTemp(path.Dir(archiveFilePath), "archive")
@@ -273,6 +259,70 @@ func createZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
 
 	return zipWriter, file, end, nil
 
+}
+
+func formatOutPutPath(archiveFilePath string) (string, error) {
+
+	outputFileInfo, err := os.Stat(outputPath)
+	switch true {
+
+	case os.IsNotExist(err):
+		err = os.MkdirAll(path.Dir(outputPath), 0755)
+		if err != nil {
+			return "", err
+		}
+		archiveFilePath = outputPath
+
+	case err != nil && !os.IsNotExist(err):
+		return "", err
+
+	case outputFileInfo.IsDir():
+		archiveFileName := path.Base(worldDirPath) + "-" + time.Now().Format(time.DateOnly) + ".zip"
+		archiveFilePath = path.Join(outputPath, archiveFileName)
+		archiveFilePath, err = addSubfixBeforeExt(archiveFilePath)
+		if err != nil {
+			return "", err
+		}
+
+	default:
+		archiveFilePath, err = addSubfixBeforeExt(outputPath)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return archiveFilePath, nil
+}
+
+func addSubfixBeforeExt(archiveFilePath string) (string, error) {
+	nameArr := strings.FieldsFunc(archiveFilePath, isExtKeyWord)	
+	for number := 1;; number++ {
+		var subfix string = "-" + fmt.Sprint(number)
+		archiveFilePath = nameArr[0] + subfix
+		for _, ext := range nameArr[1:] {
+			archiveFilePath += "." + ext
+		}
+		record.Debug(archiveFilePath)
+		stat, err := os.Stat(archiveFilePath)
+		if os.IsNotExist(err) {
+			break
+		} else if err != nil && !os.IsNotExist(err) {
+			return "", err
+		} else if !stat.IsDir() || os.IsExist(err) {
+			continue
+		}
+	}
+
+	return archiveFilePath, nil
+
+}
+
+func isExtKeyWord(char rune) bool {
+	if char == rune("."[0]) {
+		return true
+	} else {
+		return false
+	}
 }
 
 func addFile(root *os.Root, filePath string, zipWriter *zip.Writer) error {

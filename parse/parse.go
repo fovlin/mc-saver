@@ -59,7 +59,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 
 	for namespaceID, dimensionRule := range rootRule.Dimension {
 
-		namespaceAndID := strings.FieldsFunc(namespaceID, isKeyWord)
+		namespaceAndID := strings.FieldsFunc(namespaceID, isNamespaceKeyWord)
 		if len(namespaceAndID) != 2 {
 			return errors.New("parse namespaceID: invalid namespace ID \"" + namespaceID + "\"")
 		}
@@ -183,7 +183,7 @@ func SaveRootDataFile(root *os.Root, configFile string, zipWriter *zip.Writer, a
 	return nil
 }
 
-func isKeyWord(char rune) bool {
+func isNamespaceKeyWord(char rune) bool {
 	if char == rune(":"[0]) {
 		return true
 	} else {

@@ -32,7 +32,7 @@ func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Write
 
 	for namespaceID, dimensionRule := range rootRule.Dimension {
 
-		namespaceAndID := strings.FieldsFunc(namespaceID, isKeyWord)
+		namespaceAndID := strings.FieldsFunc(namespaceID, isNamespaceKeyWord)
 		if len(namespaceAndID) != 2 {
 			return errors.New("(parse namespaceID) invalid namespace ID \"" + namespaceID + "\"")
 		}

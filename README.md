@@ -49,7 +49,7 @@ Flags must be placed before the subcommand; anything after the subcommand is tre
 | Command | Defaults | Description |
 | --- | --- | --- |
 | `run` | `world`, `.` | Back up a world. Positional args: `<world>` and `<output>` (see [Output path](#output-path)). |
-| `gencfg` | `save-rule.json` | Generate a default config file and exit; overwrites the file if it already exists. Optional positional arg: `<config file>`. |
+| `gencfg` | `save-rule.json` | Generate a default config file and exit; throw error if it already exists. Optional positional arg: `<config file>`. |
 | `help` | — | Print the built-in help text and exit. |
 | `repl` | — | Run the interactive wizard (same as running with no command). |
 | *(no command)* | — | Run the interactive wizard: prompts for the world directory and output path in turn, and asks whether to generate a config file if one is missing. |
@@ -150,5 +150,4 @@ A list of files or folders at the world root to include. Files are added directl
 
 ## Notes
 
-- The output file overwrites an existing file with the same name.
 - When using legacy world mode, manually edit the `file` field in the config file: remove `data` and change `players` to `playerdata`.
