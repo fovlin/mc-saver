@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	UseLegacyMode  bool   = false
+	useLegacyMode  bool   = false
+	enableColor  bool   = false
 	configFilePath string = "save-rule.json"
 	worldDirPath   string = "world"
 	outputPath     string = "."
@@ -60,15 +61,7 @@ var (
 
 func main() {
 
-	record.EnableColor = true
-	
-	flag.StringVar(&configFilePath, "c", configFilePath, "config file path")
-	flag.BoolFunc("l", "legacy world mode", func(s string) error {
-		UseLegacyMode = true
-		return nil
-	})
-
-	flag.Parse()
+	initProgram()
 
 	configFilePath = strings.ReplaceAll(configFilePath, "\\", "/")
 
@@ -100,6 +93,21 @@ func help() {
 
 `
 	fmt.Printf("%v", helpOutput)
+}
+
+func initProgram() {
+	flag.StringVar(&configFilePath, "c", configFilePath, "config file path")
+	flag.BoolFunc("l", "legacy world mode", func(s string) error {
+		useLegacyMode = true
+		return nil
+	})
+	flag.BoolVar(&enableColor, "color", true, "enable color output, default is true")
+
+	flag.Parse()
+
+	if enableColor {
+		record.EnableColor = true
+	}
 }
 
 func repl() {
@@ -196,7 +204,7 @@ func run() {
 	
 	defer end(err)
 
-	if UseLegacyMode {
+	if useLegacyMode {
 		if err := parse.SaveOldAllFile(root, configFilePath, zipWriter, addFile); err != nil {
 			if err := end(err); err != nil {
 				record.Error(err)
