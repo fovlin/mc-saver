@@ -3,16 +3,18 @@ package main
 import (
 	"fmt"
 	"strconv"
-
-	"acovia.net/record"
 )
 
-func listFile() {
+func listFile() (err error) {
 	if len(subCmdArgs) < 1 {
-		record.Error("syntax error, usage: mc-saver list-file <world>")
+		return fmtErr("syntax error, usage: mc-saver list-file <world>")
 	}
 
-	initWorldConfig()
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
+
 	if len(config.File) == 0 {
 		fmt.Println("no file config")
 	}
@@ -20,63 +22,83 @@ func listFile() {
 	for i, v := range config.File {
 		fmt.Printf("- %v: %q\n", i, v)
 	}
+
+	return nil
 }
 
-func addFile() {
+func addFile() (err error) {
 	if len(subCmdArgs) < 2 {
-		record.Error("syntax error, usage: mc-saver add-file <world> <file_name>...")
+		return fmtErr("syntax error, usage: mc-saver add-file <world> <file_name>...")
 	}
 
-	initWorldConfig()
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
+
 	config.File = append(config.File, subCmdArgs[1:]...)
 
-	err := saveConfig()
+	err = saveConfig()
 	if err != nil {
-		record.Error("save config:", err)
+		return fmtErr("save config:", err)
 	}
+
+	return nil
 }
 
-func delFile() {
+func delFile() (err error) {
 	if len(subCmdArgs) < 2 {
-		record.Error("syntax error, usage: mc-saver del-file <world> <number>...")
+		return fmtErr("syntax error, usage: mc-saver del-file <world> <number>...")
 	}
 
-	initWorldConfig()
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
+
 	indexSet, err := convertIntArray(subCmdArgs[1:])
 	if err != nil {
-		record.Error("parse command line args:", err)
+		return fmtErr("parse command line args:", err)
 	}
 
 	config.File, err = deleteSliceElements(config.File, indexSet...)
 	if err != nil {
-		record.Error("delete element:", err)
+		return fmtErr("delete element:", err)
 	}
 
 	err = saveConfig()
 	if err != nil {
-		record.Error("save config:", err)
+		return fmtErr("save config:", err)
 	}
+
+	return nil
 }
 
-func modFile() {
+func modFile() (err error) {
 	if len(subCmdArgs) < 3 {
-		record.Error("syntax error, usage: mc-saver mod-file <world> <number> <file_name>")
+		return fmtErr("syntax error, usage: mc-saver mod-file <world> <number> <file_name>")
 	}
 
-	initWorldConfig()
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
+
 	index, err := strconv.ParseInt(subCmdArgs[1], 10, 32)
 	if err != nil {
-		record.Error("parse command line args:", err)
+		return fmtErr("parse command line args:", err)
 	}
 
 	if index < 0 || int(index) >= len(config.File) {
-		record.Error("index out of range:", index)
+		return fmtErr("index out of range:", index)
 	}
 
 	config.File[index] = subCmdArgs[2]
 
 	err = saveConfig()
 	if err != nil {
-		record.Error("save config:", err)
+		return fmtErr("save config:", err)
 	}
+
+	return nil
 }

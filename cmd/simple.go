@@ -4,19 +4,22 @@ import (
 	"fmt"
 
 	"acovia.net/minecraft/save"
-	"acovia.net/record"
 )
 
-func listSimple() {
+func listSimple() (err error) {
 	if len(subCmdArgs) < 2 {
-		record.Error("syntax error, usage: mc-saver list-simple <world> <dimension>...")
+		return fmtErr("syntax error, usage: mc-saver list-simple <world> <dimension>...")
 	}
 
-	initWorldConfig()
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
+
 	for _, id := range subCmdArgs[1:] {
 		_, ok := config.Dimension[id]
 		if !ok {
-			record.Error(id+":", "dimension not found")
+			return fmtErr(id+":", "dimension not found")
 		}
 
 		simpleConfig := config.Dimension[id].Simple
@@ -29,17 +32,23 @@ func listSimple() {
 			fmt.Printf("- %v: (%v, %v)\n", i, v.X, v.Y)
 		}
 	}
+
+	return nil
 }
 
-func addSimple() {
+func addSimple() (err error) {
 	if len(subCmdArgs) < 4 {
-		record.Error("syntax error, usage: mc-saver add-simple <world> <dimension> <x> <y>")
+		return fmtErr("syntax error, usage: mc-saver add-simple <world> <dimension> <x> <y>")
 	}
 
-	initWorldConfig()
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
+
 	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
-		record.Error("parse command line args:", err)
+		return fmtErr("parse command line args:", err)
 	}
 
 	newCoordinate := save.Coordinate{
@@ -54,55 +63,66 @@ func addSimple() {
 
 	err = saveConfig()
 	if err != nil {
-		record.Error("save config:", err)
+		return fmtErr("save config:", err)
 	}
+	return nil
 }
 
-func delSimple() {
+func delSimple() (err error) {
 	if len(subCmdArgs) < 3 {
-		record.Error("syntax error, usage: mc-saver del-simple <world> <dimension> <number>...")
+		return fmtErr("syntax error, usage: mc-saver del-simple <world> <dimension> <number>...")
 	}
 
-	initWorldConfig()
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
+
 	dimension, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
-		record.Error(subCmdArgs[1]+":", "dimension not found")
+		return fmtErr(subCmdArgs[1]+":", "dimension not found")
 	}
 
 	var indexSet []int
 
-	indexSet, err := convertIntArray(subCmdArgs[2:])
+	indexSet, err = convertIntArray(subCmdArgs[2:])
 	if err != nil {
-		record.Error("parse command line args:", err)
+		return fmtErr("parse command line args:", err)
 	}
 
 	dimension.Simple, err = deleteSliceElements(dimension.Simple, indexSet...)
 	if err != nil {
-		record.Error("delete element:", err)
+		return fmtErr("delete element:", err)
 	}
 
 	config.Dimension[subCmdArgs[1]] = dimension
 
 	err = saveConfig()
 	if err != nil {
-		record.Error("save config:", err)
+		return fmtErr("save config:", err)
 	}
+
+	return nil
 }
 
-func modSimple() {
+func modSimple() (err error) {
 	if len(subCmdArgs) < 5 {
-		record.Error("syntax error, usage: mc-saver mod-simple <world> <dimension> <number> <x> <y>")
+		return fmtErr("syntax error, usage: mc-saver mod-simple <world> <dimension> <number> <x> <y>")
 	}
 
-	initWorldConfig()
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
+
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
-		record.Error(subCmdArgs[1]+":", "dimension not found")
+		return fmtErr(subCmdArgs[1]+":", "dimension not found")
 	}
 
 	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
-		record.Error("parse command line args:", err)
+		return fmtErr("parse command line args:", err)
 	}
 
 	newCoordinate := save.Coordinate{
@@ -111,13 +131,14 @@ func modSimple() {
 	}
 
 	if indexSet[0] < 0 || indexSet[0] >= len(config.Dimension[subCmdArgs[1]].Simple) {
-		record.Error("index out of range:", indexSet[0])
+		return fmtErr("index out of range:", indexSet[0])
 	}
 
 	config.Dimension[subCmdArgs[1]].Simple[indexSet[0]] = newCoordinate
 
 	err = saveConfig()
 	if err != nil {
-		record.Error("save config:", err)
+		return fmtErr("save config:", err)
 	}
+	return nil
 }

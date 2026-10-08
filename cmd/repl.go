@@ -4,30 +4,39 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path"
 	"strings"
 
-	//"text/scanner"
-
 	"acovia.net/record"
-	"log"
-	//"github.com/docker/docker/libnetwork/drivers/null"
 )
 
-func repl() {
-	// At least one paramter to execute this stage. 
-	if len(subCmdArgs) < 1 { 
-		record.Error("Syntax Error, usage: mc-saver repl <world path>") 
+var (
+	replSpecCmd = map[string]func(){
+		"exit": func() {
+			os.Exit(0)
+		},
+		"help": printHelper,
+	}
+)
+
+func repl() (err error) {
+	// At least one paramter to execute this stage.
+	if len(subCmdArgs) < 1 {
+		err := replNoArgs()
+		if err != nil {
+			return err
+		}
 	}
 
-	worldDirPath = subCmdArgs[0] // get the world Directory 
-	configFilePath = path.Join(worldDirPath,configFileName) // Complete path.
+	worldDirPath = subCmdArgs[0] // get the world Directory
 
-	initWorldConfig() 
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
 
 	record.Info("==== MC-SAVER Repl Mode ====")
-	record.Info("Enter repl mode for", worldDirPath) 
-	record.Info("Type 'help' for commands, 'exit' or 'quit' to quit repl mode ")
+	record.Info("enter repl mode for", worldDirPath)
+	record.Info("type 'help' for commands, 'exit' or 'quit' to quit repl mode ")
 
 	scanner := bufio.NewScanner(os.Stdin)
 
@@ -37,73 +46,75 @@ func repl() {
 			break
 		}
 
-		line := strings.TrimSpace(scanner.Text()) // remove the space char. 
-		if line == "" {
+		line := strings.TrimSpace(scanner.Text()) // remove the space char.
+		args = strings.Fields(line)               // Get text slices by Fields()
+		if len(args) == 0 {
 			continue
-		}else if line == "exit" || line == "quit" {
+		}
+
+		replSpecFunc, ok := replSpecCmd[args[0]]
+		if ok {
+			replSpecFunc()
+		}
+
+		cmd = args[0]                                            // get the command header
+		subCmdArgs = append([]string{worldDirPath}, args[1:]...) // get the command arguments
+
+		err := executeReplCommand()
+		if err != nil {
+			record.ErrorNoExit(err)
+		}
+
+	}
+	// Error Check
+
+	if err := scanner.Err(); err != nil {
+		return fmtErr("scanner error:", err)
+	}
+
+	return nil
+}
+
+func replNoArgs() (err error) {
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Print("mc-saver: select world > ")
+		if !scanner.Scan() {
 			break
-		}else if line == "help" {
-			printHelper()
-			continue
-		}
-		args := strings.Fields(line) // Get text slices by Fields()
-		if len(args) == 0{
-			continue
 		}
 
-		cmdName := args[0] // get the command header
-		cmdArgs := args[1:] // get the command arguments
+		line := strings.TrimSpace(scanner.Text()) // remove the space char.
+		args = strings.Fields(line)               // Get text slices by Fields()
+		if len(args) == 0 {
+			continue
+		}
 
-		executeReplCommand(cmdName, cmdArgs)
-
-		
-
-	}
-	// Error Check 
-
-	if err := scanner.Err() ; err != nil {
-		log.Printf("scanner error: %v", err)
+		subCmdArgs = []string{args[0]}
+		break
 	}
 
-}	
+	err = scanner.Err()
+	if err != nil {
+		return err
+	}
 
+	return nil
+}
 
 func printHelper() {
-	fmt.Println(`repl commands (world argument is implicit):
-  list                 - list all dimension rules and file rules
-  list-config <dimension>...  - list range and simple rules of dimension(s)
-  list-dms             - list dimension namespace ids
-  add-dms <dimension>...      - add dimension(s) with default range rule
-  del-dms <dimension>...      - delete dimension(s)
-  mod-dms <old> <new>         - rename a dimension
-  list-range <dimension>...   - list range rules of dimension(s)
-  add-range <dimension> <from_x> <from_y> <to_x> <to_y>  - add range rule
-  del-range <dimension> <index>...  - delete range rule(s) by index
-  mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>  - modify range rule
-  list-simple <dimension>...  - list simple rules of dimension(s)
-  add-simple <dimension> <x> <y>  - add simple rule
-  del-simple <dimension> <index>...  - delete simple rule(s) by index
-  mod-simple <dimension> <index> <x> <y>  - modify simple rule
-  list-file            - list file rules
-  add-file <name>...   - add file rule(s)
-  del-file <index>...  - delete file rule(s) by index
-  mod-file <index> <name>  - modify file rule
-  help                 - show this help
-  about				   - show the information and copyright about this kit.
-  exit / quit          - leave repl mode`)
+	fmt.Println(replHelpInfo)
 
 }
-func executeReplCommand(cmdName string, cmdArgs []string) {
-	subCmdArgs = append([]string{worldDirPath}, cmdArgs...) // get the complete command
-
-	function, ok := cmdMap[cmdName]
+func executeReplCommand() (err error) {
+	function, ok := cmdMap[cmd]
 	if !ok {
-		record.Error("Unknown Command: " + cmdName)
-		return 
+		return fmtErr("unknown command: " + cmd)
 	}
-	function()
 
+	err = function()
+	if err != nil {
+		record.ErrorNoExit(err)
+	}
+
+	return nil
 }
-
-
-

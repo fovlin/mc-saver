@@ -4,18 +4,16 @@ import (
 	"fmt"
 
 	"acovia.net/minecraft/save"
-	"acovia.net/record"
 )
 
-func listRange() {
+func listRange() (err error) {
 	if len(subCmdArgs) < 2 {
-		record.Error("syntax error, usage: mc-saver list-range <world> <dimension>...")
+		return fmtErr("syntax error, usage: mc-saver list-range <world> <dimension>...")
 	}
 
-	initWorldConfig()
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
-		record.Error(subCmdArgs[1]+":", "dimension not found")
+		return fmtErr(subCmdArgs[1]+":", "dimension not found")
 	}
 
 	for _, id := range subCmdArgs[1:] {
@@ -29,17 +27,23 @@ func listRange() {
 			fmt.Printf("- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
 		}
 	}
+
+	return nil
 }
 
-func addRange() {
+func addRange() (err error) {
 	if len(subCmdArgs) < 6 {
-		record.Error("syntax error, usage: mc-saver add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>")
+		return fmtErr("syntax error, usage: mc-saver add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>")
 	}
 
-	initWorldConfig()
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
+
 	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
-		record.Error("parse command line args:", err)
+		return fmtErr("parse command line args:", err)
 	}
 
 	newRangeConfig := save.RangeConfig{
@@ -59,58 +63,70 @@ func addRange() {
 
 	err = saveConfig()
 	if err != nil {
-		record.Error("save config:", err)
+		return fmtErr("save config:", err)
 	}
+
+	return nil
 }
 
-func delRange() {
+func delRange() (err error) {
 	if len(subCmdArgs) < 3 {
-		record.Error("syntax error, usage: mc-saver del-range <world> <dimension> <number>...")
+		return fmtErr("syntax error, usage: mc-saver del-range <world> <dimension> <number>...")
 	}
 
-	initWorldConfig()
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
+
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
-		record.Error(subCmdArgs[1]+":", "dimension not found")
+		return fmtErr(subCmdArgs[1]+":", "dimension not found")
 	}
 
 	delList, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
-		record.Error("parse command line args:", err)
+		return fmtErr("parse command line args:", err)
 	}
 
 	dimension, _ := config.Dimension[subCmdArgs[1]]
 	dimension.Range, err = deleteSliceElements(dimension.Range, delList...)
 	if err != nil {
-		record.Error("delete element:", err)
+		return fmtErr("delete element:", err)
 	}
 
 	config.Dimension[subCmdArgs[1]] = dimension
 
 	err = saveConfig()
 	if err != nil {
-		record.Error("save config:", err)
+		return fmtErr("save config:", err)
 	}
+
+	return nil
 }
 
-func modRange() {
+func modRange() (err error) {
 	if len(subCmdArgs) < 7 {
-		record.Error("syntax error, usage: mc-saver mod-range <world> <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
+		return fmtErr("syntax error, usage: mc-saver mod-range <world> <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
 	}
 
-	initWorldConfig()
+	err = initWorldConfig()
+	if err != nil {
+		return err
+	}
+
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
-		record.Error(subCmdArgs[1]+":", "dimension not found")
+		return fmtErr(subCmdArgs[1]+":", "dimension not found")
 	}
 
 	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
-		record.Error("parse command line args:", err)
+		return fmtErr("parse command line args:", err)
 	}
 
 	if indexSet[0] < 0 || indexSet[0] >= len(config.Dimension[subCmdArgs[1]].Range) {
-		record.Error("number out of range:", indexSet[0])
+		return fmtErr("number out of range:", indexSet[0])
 	}
 
 	config.Dimension[subCmdArgs[1]].Range[indexSet[0]] = save.RangeConfig{
@@ -126,6 +142,8 @@ func modRange() {
 
 	err = saveConfig()
 	if err != nil {
-		record.Error("save config:", err)
+		return fmtErr("save config:", err)
 	}
+
+	return nil
 }

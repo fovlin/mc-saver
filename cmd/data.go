@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -24,8 +25,8 @@ var (
 	configFileName string = "saver.json"
 	outputPath     string = "."
 
-	// Declare the commandMapping Func : 
-	cmdMap map[string] func() 
+	// Declare the commandMapping Func :
+	cmdMap map[string]func() error
 
 	root *os.Root
 
@@ -59,10 +60,9 @@ var (
 	}
 )
 
-
-// cmdMapping func init : 
+// cmdMapping func init :
 func init() {
-	cmdMap = map[string]func(){
+	cmdMap = map[string]func() error{
 		"run":         run,
 		"gencfg":      gencfg,
 		"help":        help,
@@ -84,11 +84,10 @@ func init() {
 		"add-file":    addFile,
 		"del-file":    delFile,
 		"mod-file":    modFile,
-		"repl": repl,
-		"about": about,
+		"repl":        repl,
+		"about":       about,
 	}
 }
-
 
 var helpInfo = `mc-saver [-l] [-color] <command> <world> [args...]
 
@@ -182,7 +181,28 @@ options:
 		enable color output.
 `
 
-
+var replHelpInfo = `repl commands (world argument is implicit):
+  list                 - list all dimension rules and file rules
+  list-config <dimension>...  - list range and simple rules of dimension(s)
+  list-dms             - list dimension namespace ids
+  add-dms <dimension>...      - add dimension(s) with default range rule
+  del-dms <dimension>...      - delete dimension(s)
+  mod-dms <old> <new>         - rename a dimension
+  list-range <dimension>...   - list range rules of dimension(s)
+  add-range <dimension> <from_x> <from_y> <to_x> <to_y>  - add range rule
+  del-range <dimension> <index>...  - delete range rule(s) by index
+  mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>  - modify range rule
+  list-simple <dimension>...  - list simple rules of dimension(s)
+  add-simple <dimension> <x> <y>  - add simple rule
+  del-simple <dimension> <index>...  - delete simple rule(s) by index
+  mod-simple <dimension> <index> <x> <y>  - modify simple rule
+  list-file            - list file rules
+  add-file <name>...   - add file rule(s)
+  del-file <index>...  - delete file rule(s) by index
+  mod-file <index> <name>  - modify file rule
+  help                 - show this help
+  about				   - show the information and copyright about this kit.
+  exit / quit          - leave repl mode`
 
 func formatOutputPath(archiveFilePath string) (string, error) {
 
@@ -295,4 +315,9 @@ func loadSubCmdArgs() []string {
 		return args[1:]
 	}
 	return nil
+}
+
+func fmtErr(v ...any) error {
+	fmtString, _ := strings.CutSuffix(fmt.Sprintln(v...), "\n")
+	return errors.New(fmtString)
 }
