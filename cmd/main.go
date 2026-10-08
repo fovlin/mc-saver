@@ -57,28 +57,74 @@ func initProgram() (err error) {
 	return nil
 }
 
-func initWorldConfig() (err error) {
-	initConfigFilePath()
+func initWorld() error {
+	worldDirStat, err := os.Stat(worldDirPath)
+	if err != nil {
+		return formatError("stat world directory:", err)
+	}
+	if !worldDirStat.IsDir() {
+		return formatError(worldDirPath, "not a directory")
+	}
+	return nil
+}
+
+func initConfig() (err error) {
+	if !fileIsExisted(configFilePath) {
+		config = save.NullConfig
+		err = saveConfig()
+		if err != nil {
+			formatError("save config:", err)
+		}
+	}
+
 	config, err = save.LoadConfig(configFilePath)
 	if err != nil {
-		return fmtErr("load config:", err)
+		return formatError("load config:", err)
+	}
+	return nil
+}
+func initWorldConfig() (err error) {
+	err = initWorld()
+	if err != nil {
+		return formatError("init world:", err)
+	}
+
+	configFilePath = path.Join(worldDirPath, configFileName)
+	err = initConfig()
+	if err != nil {
+		return formatError("init config:", err)
 	}
 
 	return nil
 }
 
-func initConfigFilePath() {
-	worldDirPath = subCmdArgs[0]
-	configFilePath = path.Join(worldDirPath, configFileName)
-}
-
 func gencfg() (err error) {
 	if len(subCmdArgs) < 1 {
-		return fmtErr("syntax error, usage: mc-saver gencfg <world>")
+		return formatError("syntax error, usage: mc-saver gencfg <world>")
 	}
 
-	initConfigFilePath()
+	err = gencfgFunc()
+	if err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func replGencfg() (err error) {
+	if len(subCmdArgs) < 1 {
+		return formatError("syntax error, usage: gencfg")
+	}
+
+	err = gencfgFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func gencfgFunc() (err error) {
 	if useLegacyMode {
 		defaultConfig.File = []string{
 			"level.dat",
@@ -89,18 +135,22 @@ func gencfg() (err error) {
 		}
 	}
 
-	if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
-		return fmtErr("generate config file:", "'"+configFilePath+"'", "already exists", configFilePath)
+	worldDirPath = subCmdArgs[0]
+	configFilePath = path.Join(worldDirPath, configFileName)
+
+	_, err = os.Stat(configFilePath)
+	if !os.IsNotExist(err) {
+		return formatError(configFilePath, "already exists")
 	}
 
 	jsonData, err := json.MarshalIndent(defaultConfig, "", "	")
 	if err != nil {
-		return fmtErr("load default config struct:", err)
+		return formatError("load default config struct:", err)
 	}
 
 	err = os.WriteFile(configFilePath, jsonData, 0644)
 	if err != nil {
-		return fmtErr(err)
+		return formatError(err)
 	}
 	record.Info("created config file:", configFilePath)
 	return nil
@@ -108,9 +158,31 @@ func gencfg() (err error) {
 
 func run() (err error) {
 	if len(subCmdArgs) < 1 {
-		return fmtErr("syntax error, usage: mc-saver run <world> [output]")
+		return formatError("syntax error, usage: mc-saver run <world> [output]")
 	}
 
+	err = runFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func replRun() (err error) {
+	if len(subCmdArgs) < 1 {
+		return formatError("syntax error, usage: run [output]")
+	}
+
+	err = runFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func runFunc() (err error) {
 	if len(subCmdArgs) > 1 {
 		outputPath = subCmdArgs[1]
 	}
@@ -118,6 +190,7 @@ func run() (err error) {
 	worldDirPath = strings.ReplaceAll(worldDirPath, "\\", "/")
 	outputPath = strings.ReplaceAll(outputPath, "\\", "/")
 
+	worldDirPath = subCmdArgs[0]
 	err = initWorldConfig()
 	if err != nil {
 		return err
@@ -125,116 +198,60 @@ func run() (err error) {
 
 	root, err = os.OpenRoot(worldDirPath)
 	if err != nil {
-		return fmtErr("open world directory:", err)
+		return formatError("open world directory:", err)
 	}
 
 	zipWriter, _, end, err := initZipWriter()
 	if err != nil {
-		return fmtErr("init zip writer:", err)
+		return formatError("init zip writer:", err)
 	}
 
 	if useLegacyMode {
 		if err := save.SaveOldAllFile(root, config, zipWriter, saveFile); err != nil {
 			if err := end(err); err != nil {
-				return fmtErr(err)
+				return formatError(err)
 			}
 		}
 	} else {
 		if err := save.SaveAllFile(root, config, zipWriter, saveFile); err != nil {
 			if err := end(err); err != nil {
-				return fmtErr(err)
+				return formatError(err)
 			}
 		}
 	}
 
 	if err := end(nil); err != nil {
-		return fmtErr("close file writer:", err)
+		return formatError("close file writer:", err)
 	}
 
-	return nil
-}
-
-func addDms() (err error) {
-	if len(subCmdArgs) < 2 {
-		return fmtErr("syntax error, usage: mc-saver add-dms <world> <dimension>...")
-	}
-
-	err = initWorldConfig()
-	if err != nil {
-		return err
-	}
-	for _, v := range subCmdArgs[1:] {
-		_, ok := config.Dimension[v]
-		if ok {
-			record.Warn(v+":", "dimension existed, skip")
-			continue
-		}
-		config.Dimension[v] = defaultDimensionConfig
-	}
-
-	err = saveConfig()
-	if err != nil {
-		return fmtErr("save config:", err)
-	}
-	return nil
-}
-
-func delDms() (err error) {
-	if len(subCmdArgs) < 2 {
-		return fmtErr("syntax error, usage: mc-saver del-dms <world> <dimension>...")
-	}
-
-	err = initWorldConfig()
-	if err != nil {
-		return err
-	}
-	for _, v := range subCmdArgs[1:] {
-		_, ok := config.Dimension[v]
-		if !ok {
-			record.Warn(v+":", "dimension not found, skip")
-			continue
-		}
-		delete(config.Dimension, v)
-	}
-
-	err = saveConfig()
-	if err != nil {
-		return fmtErr("save config:", err)
-	}
-	return nil
-}
-
-func modDms() (err error) {
-	if len(subCmdArgs) < 3 {
-		return fmtErr("syntax error, usage: mc-saver mod-dms <world> <old_dimension> <dimension>")
-	}
-
-	err = initWorldConfig()
-	if err != nil {
-		return err
-	}
-	if _, ok := config.Dimension[subCmdArgs[1]]; !ok {
-		return fmtErr(subCmdArgs[1]+":", "dimension not found")
-	}
-
-	if subCmdArgs[1] == subCmdArgs[2] {
-		return fmtErr("dimension no change")
-	}
-
-	config.Dimension[subCmdArgs[2]] = config.Dimension[subCmdArgs[1]]
-	delete(config.Dimension, subCmdArgs[1])
-
-	err = saveConfig()
-	if err != nil {
-		return fmtErr("save config:", err)
-	}
 	return nil
 }
 
 func listConfig() (err error) {
 	if len(subCmdArgs) < 2 {
-		return fmtErr("syntax error, usage: mc-saver list-config <world> <dimension>...")
+		return formatError("syntax error, usage: mc-saver list-config <world> <dimension>...")
 	}
+	err = listConfigFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func replListConfig() (err error) {
+	if len(subCmdArgs) < 2 {
+		return formatError("syntax error, usage: list-config <dimension>...")
+	}
+	err = listConfigFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func listConfigFunc() (err error) {
 	listRange()
 	listSimple()
 	return nil
@@ -242,9 +259,28 @@ func listConfig() (err error) {
 
 func list() (err error) {
 	if len(subCmdArgs) < 1 {
-		return fmtErr("syntax error, usage: mc-saver list <world>")
+		return formatError("syntax error, usage: mc-saver list <world>")
 	}
 
+	err = listFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func replList() (err error) {
+	err = listFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func listFunc() (err error) {
+	worldDirPath = subCmdArgs[0]
 	err = initWorldConfig()
 	if err != nil {
 		return err
@@ -273,20 +309,5 @@ func list() (err error) {
 
 	fmt.Println("file config:")
 	listFile()
-	return nil
-}
-
-func listDms() (err error) {
-	if len(subCmdArgs) < 1 {
-		return fmtErr("syntax error, usage: mc-saver list-dms <world>")
-	}
-
-	err = initWorldConfig()
-	if err != nil {
-		return err
-	}
-	for id := range config.Dimension {
-		fmt.Printf("- %v\n", id)
-	}
 	return nil
 }

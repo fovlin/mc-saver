@@ -26,9 +26,9 @@ var (
 	outputPath     string = "."
 
 	// Declare the commandMapping Func :
-	cmdMap map[string]func() error
-
-	root *os.Root
+	cmdMap     map[string]func() error
+	replCmdMap map[string]func() error
+	root       *os.Root
 
 	defaultDimensionConfig = save.DimensionConfig{
 		Range: []save.RangeConfig{
@@ -86,6 +86,34 @@ func init() {
 		"mod-file":    modFile,
 		"repl":        repl,
 		"about":       about,
+	}
+
+	replCmdMap = map[string]func() error{
+		"run":         replRun,
+		"gencfg":      replGencfg,
+		"list":        replList,
+		"list-config": replListConfig,
+		"list-dms":    replListDms,
+		"add-dms":     replAddDms,
+		"del-dms":     replDelDms,
+		"mod-dms":     replModDms,
+		"list-range":  replListRange,
+		"add-range":   replAddRange,
+		"del-range":   replDelRange,
+		"mod-range":   replModRange,
+		"list-simple": replListSimple,
+		"add-simple":  replAddSimple,
+		"del-simple":  replDelSimple,
+		"mod-simple":  replModSimple,
+		"list-file":   replListFile,
+		"add-file":    replAddFile,
+		"del-file":    replDelFile,
+		"mod-file":    replModFile,
+
+		"about":  about,
+		"select": replSelectWorld,
+		"help":   replHelp,
+		"exit":   exit,
 	}
 }
 
@@ -317,7 +345,15 @@ func loadSubCmdArgs() []string {
 	return nil
 }
 
-func fmtErr(v ...any) error {
+func formatError(v ...any) error {
 	fmtString, _ := strings.CutSuffix(fmt.Sprintln(v...), "\n")
 	return errors.New(fmtString)
+}
+
+func fileIsExisted(name string) bool {
+	_, err := os.Stat(name)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
 }

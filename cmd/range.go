@@ -8,12 +8,40 @@ import (
 
 func listRange() (err error) {
 	if len(subCmdArgs) < 2 {
-		return fmtErr("syntax error, usage: mc-saver list-range <world> <dimension>...")
+		return formatError("syntax error, usage: mc-saver list-range <world> <dimension>...")
+	}
+
+	err = listRangeFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func replListRange() (err error) {
+	if len(subCmdArgs) < 2 {
+		return formatError("syntax error, usage: list-range <dimension>...")
+	}
+
+	err = listRangeFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func listRangeFunc() (err error) {
+	worldDirPath = subCmdArgs[0]
+	err = initWorldConfig()
+	if err != nil {
+		return err
 	}
 
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
-		return fmtErr(subCmdArgs[1]+":", "dimension not found")
+		return formatError(subCmdArgs[1]+":", "dimension not found")
 	}
 
 	for _, id := range subCmdArgs[1:] {
@@ -33,9 +61,32 @@ func listRange() (err error) {
 
 func addRange() (err error) {
 	if len(subCmdArgs) < 6 {
-		return fmtErr("syntax error, usage: mc-saver add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>")
+		return formatError("syntax error, usage: mc-saver add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>")
 	}
 
+	err = addRangeFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func replAddRange() (err error) {
+	if len(subCmdArgs) < 6 {
+		return formatError("syntax error, usage: add-range <dimension> <from_x> <from_y> <to_x> <to_y>")
+	}
+
+	err = addRangeFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func addRangeFunc() (err error) {
+	worldDirPath = subCmdArgs[0]
 	err = initWorldConfig()
 	if err != nil {
 		return err
@@ -43,7 +94,7 @@ func addRange() (err error) {
 
 	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
-		return fmtErr("parse command line args:", err)
+		return formatError("parse command line args:", err)
 	}
 
 	newRangeConfig := save.RangeConfig{
@@ -63,7 +114,7 @@ func addRange() (err error) {
 
 	err = saveConfig()
 	if err != nil {
-		return fmtErr("save config:", err)
+		return formatError("save config:", err)
 	}
 
 	return nil
@@ -71,9 +122,32 @@ func addRange() (err error) {
 
 func delRange() (err error) {
 	if len(subCmdArgs) < 3 {
-		return fmtErr("syntax error, usage: mc-saver del-range <world> <dimension> <number>...")
+		return formatError("syntax error, usage: mc-saver del-range <world> <dimension> <number>...")
 	}
 
+	err = delRangeFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func replDelRange() (err error) {
+	if len(subCmdArgs) < 3 {
+		return formatError("syntax error, usage: del-range <dimension> <number>...")
+	}
+
+	err = delRangeFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func delRangeFunc() (err error) {
+	worldDirPath = subCmdArgs[0]
 	err = initWorldConfig()
 	if err != nil {
 		return err
@@ -81,25 +155,25 @@ func delRange() (err error) {
 
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
-		return fmtErr(subCmdArgs[1]+":", "dimension not found")
+		return formatError(subCmdArgs[1]+":", "dimension not found")
 	}
 
 	delList, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
-		return fmtErr("parse command line args:", err)
+		return formatError("parse command line args:", err)
 	}
 
 	dimension, _ := config.Dimension[subCmdArgs[1]]
 	dimension.Range, err = deleteSliceElements(dimension.Range, delList...)
 	if err != nil {
-		return fmtErr("delete element:", err)
+		return formatError("delete element:", err)
 	}
 
 	config.Dimension[subCmdArgs[1]] = dimension
 
 	err = saveConfig()
 	if err != nil {
-		return fmtErr("save config:", err)
+		return formatError("save config:", err)
 	}
 
 	return nil
@@ -107,9 +181,32 @@ func delRange() (err error) {
 
 func modRange() (err error) {
 	if len(subCmdArgs) < 7 {
-		return fmtErr("syntax error, usage: mc-saver mod-range <world> <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
+		return formatError("syntax error, usage: mc-saver mod-range <world> <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
 	}
 
+	err = modRangeFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func replModRange() (err error) {
+	if len(subCmdArgs) < 7 {
+		return formatError("syntax error, usage: mod-range <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
+	}
+
+	err = modRangeFunc()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func modRangeFunc() (err error) {
+	worldDirPath = subCmdArgs[0]
 	err = initWorldConfig()
 	if err != nil {
 		return err
@@ -117,16 +214,16 @@ func modRange() (err error) {
 
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
-		return fmtErr(subCmdArgs[1]+":", "dimension not found")
+		return formatError(subCmdArgs[1]+":", "dimension not found")
 	}
 
 	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
-		return fmtErr("parse command line args:", err)
+		return formatError("parse command line args:", err)
 	}
 
 	if indexSet[0] < 0 || indexSet[0] >= len(config.Dimension[subCmdArgs[1]].Range) {
-		return fmtErr("number out of range:", indexSet[0])
+		return formatError("number out of range:", indexSet[0])
 	}
 
 	config.Dimension[subCmdArgs[1]].Range[indexSet[0]] = save.RangeConfig{
@@ -142,7 +239,7 @@ func modRange() (err error) {
 
 	err = saveConfig()
 	if err != nil {
-		return fmtErr("save config:", err)
+		return formatError("save config:", err)
 	}
 
 	return nil

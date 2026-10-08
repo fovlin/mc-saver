@@ -9,33 +9,34 @@ import (
 	"acovia.net/record"
 )
 
+// repl is command for world.
+
 var (
-	replSpecCmd = map[string]func(){
-		"exit": func() {
-			os.Exit(0)
-		},
-		"help": printHelper,
+	replNoArgsCmd = map[string]func() error{
+		"exit":   exit,
+		"select": replNoArgsSelectWorld,
+		"help":   replHelp,
 	}
 )
 
 func repl() (err error) {
-	// At least one paramter to execute this stage.
 	if len(subCmdArgs) < 1 {
-		err := replNoArgs()
+		err = replNoArgs()
 		if err != nil {
 			return err
 		}
 	}
 
-	worldDirPath = subCmdArgs[0] // get the world Directory
-
-	err = initWorldConfig()
-	if err != nil {
-		return err
+	if len(subCmdArgs) > 0 {
+		worldDirPath = subCmdArgs[0]
+		err = initWorldConfig()
+		if err != nil {
+			return err
+		}
 	}
 
 	record.Info("==== MC-SAVER Repl Mode ====")
-	record.Info("enter repl mode for", worldDirPath)
+	record.Info("selected:", subCmdArgs[0])
 	record.Info("type 'help' for commands, 'exit' or 'quit' to quit repl mode ")
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -52,24 +53,27 @@ func repl() (err error) {
 			continue
 		}
 
-		replSpecFunc, ok := replSpecCmd[args[0]]
+		cmd = args[0]                                    // get the command header
+		subCmdArgs = append(subCmdArgs[:1], args[1:]...) // get the command arguments
+		replSpecFunc, ok := replCmdMap[args[0]]
 		if ok {
-			replSpecFunc()
+			err = replSpecFunc()
+			if err != nil {
+				record.ErrorNoExit(err)
+			}
+			continue
 		}
 
-		cmd = args[0]                                            // get the command header
-		subCmdArgs = append([]string{worldDirPath}, args[1:]...) // get the command arguments
-
-		err := executeReplCommand()
+		err := runReplCmd()
 		if err != nil {
 			record.ErrorNoExit(err)
+			continue
 		}
-
 	}
 	// Error Check
 
 	if err := scanner.Err(); err != nil {
-		return fmtErr("scanner error:", err)
+		return formatError("scanner error:", err)
 	}
 
 	return nil
@@ -77,8 +81,9 @@ func repl() (err error) {
 
 func replNoArgs() (err error) {
 	scanner := bufio.NewScanner(os.Stdin)
-	for {
-		fmt.Print("mc-saver: select world > ")
+	for len(subCmdArgs) == 0 {
+		record.Info("no world selected, please run: 'select <world>'")
+		fmt.Print("mc-saver: > ")
 		if !scanner.Scan() {
 			break
 		}
@@ -88,9 +93,17 @@ func replNoArgs() (err error) {
 		if len(args) == 0 {
 			continue
 		}
-
-		subCmdArgs = []string{args[0]}
-		break
+		cmd = args[0]
+		replSpecFunc, ok := replNoArgsCmd[cmd]
+		if ok {
+			err = replSpecFunc()
+			if err != nil {
+				record.ErrorNoExit(err)
+			}
+			continue
+		} else {
+			record.ErrorNoExit("unknow command:", cmd)
+		}
 	}
 
 	err = scanner.Err()
@@ -101,20 +114,58 @@ func replNoArgs() (err error) {
 	return nil
 }
 
-func printHelper() {
-	fmt.Println(replHelpInfo)
-
-}
-func executeReplCommand() (err error) {
-	function, ok := cmdMap[cmd]
+func runReplCmd() (err error) {
+	cmdFunc, ok := replCmdMap[cmd]
 	if !ok {
-		return fmtErr("unknown command: " + cmd)
+		return formatError("unknow command:", cmd)
 	}
-
-	err = function()
+	err = cmdFunc()
 	if err != nil {
-		record.ErrorNoExit(err)
+		return err
 	}
 
 	return nil
+}
+
+func replHelp() (err error) {
+	fmt.Println(replHelpInfo)
+	return nil
+}
+
+func exit() (err error) {
+	os.Exit(0)
+	return nil
+}
+
+func replSelectWorld() (err error) {
+	if len(subCmdArgs) < 2 {
+		return formatError("syntax error, usage: select <world>")
+	}
+
+	worldDirPath = subCmdArgs[1]
+	err = initWorldConfig()
+	if err != nil {
+		return formatError(err)
+	}
+
+	subCmdArgs[0] = subCmdArgs[1]
+
+	return err
+}
+
+func replNoArgsSelectWorld() (err error) {
+	if len(args) < 2 {
+		return formatError("syntax error, usage: select <world>")
+	}
+
+	subCmdArgs = []string{args[1]}
+	worldDirPath = subCmdArgs[0]
+
+	err = initWorldConfig()
+	if err != nil {
+		subCmdArgs = make([]string, 0)
+		return formatError(err)
+	}
+
+	return err
 }
