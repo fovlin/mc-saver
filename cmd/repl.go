@@ -89,6 +89,7 @@ func printHelper() {
   del-file <index>...  - delete file rule(s) by index
   mod-file <index> <name>  - modify file rule
   help                 - show this help
+  about				   - show the information and copyright about this kit.
   exit / quit          - leave repl mode`)
 
 }

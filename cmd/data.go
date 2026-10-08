@@ -110,6 +110,9 @@ backup command:
 
 	help
 		print this help text.
+		
+	about
+		The information and copyright about this kit.
 
 config command:
 
