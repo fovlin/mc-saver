@@ -2,44 +2,60 @@ package main
 
 import (
 	"fmt"
+	"path"
 
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
 )
 
-func listRange() {
+func listRange() error {
 	if len(subCmdArgs) < 2 {
-		record.Error("syntax error, usage: mc-saver list-range <world> <dimension>...")
+		return usageError("mc-saver list-range <world> <dimension>...", "list-range <dimension>...")
+	}
+	worldDirPath := fmtPath(subCmdArgs[0])
+	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
+	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+		return err
 	}
 
-	initWorldConfig()
-	_, ok := config.Dimension[subCmdArgs[1]]
-	if !ok {
-		record.Error(subCmdArgs[1]+":", "dimension not found")
-	}
+	return printRangeRules(subCmdArgs[1:])
+}
 
-	for _, id := range subCmdArgs[1:] {
-		rangeConfig := config.Dimension[id].Range
-		if len(rangeConfig) == 0 {
+// printRangeRules prints the range rules of every given dimension.
+func printRangeRules(dimensions []string) error {
+	for _, id := range dimensions {
+		rule, ok := config.Dimension[id]
+		if !ok {
+			return record.FmtError(id+":", "dimension not found")
+		}
+
+		if len(rule.Range) == 0 {
 			fmt.Printf("no range config for %v\n", id)
 			continue
 		}
+
 		fmt.Printf("range config for %v:\n", id)
-		for i, v := range rangeConfig {
+		for i, v := range rule.Range {
 			fmt.Printf("- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
 		}
 	}
+
+	return nil
 }
 
-func addRange() {
+func addRange() error {
 	if len(subCmdArgs) < 6 {
-		record.Error("syntax error, usage: mc-saver add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>")
+		return usageError("mc-saver add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>", "add-range <dimension> <from_x> <from_y> <to_x> <to_y>")
+	}
+	worldDirPath := fmtPath(subCmdArgs[0])
+	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
+	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+		return err
 	}
 
-	initWorldConfig()
 	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
-		record.Error("parse command line args:", err)
+		return record.FmtError("parse command line args:", err)
 	}
 
 	newRangeConfig := save.RangeConfig{
@@ -53,67 +69,71 @@ func addRange() {
 		},
 	}
 
-	dimension, _ := config.Dimension[subCmdArgs[1]]
+	id := subCmdArgs[1]
+	dimension := config.Dimension[id]
 	dimension.Range = append(dimension.Range, newRangeConfig)
-	config.Dimension[subCmdArgs[1]] = dimension
+	config.Dimension[id] = dimension
 
-	err = saveConfig()
-	if err != nil {
-		record.Error("save config:", err)
-	}
+	return commitConfig(configFilePath)
 }
 
-func delRange() {
+func delRange() error {
 	if len(subCmdArgs) < 3 {
-		record.Error("syntax error, usage: mc-saver del-range <world> <dimension> <number>...")
+		return usageError("mc-saver del-range <world> <dimension> <index>...", "del-range <dimension> <index>...")
+	}
+	worldDirPath := fmtPath(subCmdArgs[0])
+	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
+	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+		return err
 	}
 
-	initWorldConfig()
-	_, ok := config.Dimension[subCmdArgs[1]]
+	id := subCmdArgs[1]
+	dimension, ok := config.Dimension[id]
 	if !ok {
-		record.Error(subCmdArgs[1]+":", "dimension not found")
-	}
-
-	delList, err := convertIntArray(subCmdArgs[2:])
-	if err != nil {
-		record.Error("parse command line args:", err)
-	}
-
-	dimension, _ := config.Dimension[subCmdArgs[1]]
-	dimension.Range, err = deleteSliceElements(dimension.Range, delList...)
-	if err != nil {
-		record.Error("delete element:", err)
-	}
-
-	config.Dimension[subCmdArgs[1]] = dimension
-
-	err = saveConfig()
-	if err != nil {
-		record.Error("save config:", err)
-	}
-}
-
-func modRange() {
-	if len(subCmdArgs) < 7 {
-		record.Error("syntax error, usage: mc-saver mod-range <world> <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
-	}
-
-	initWorldConfig()
-	_, ok := config.Dimension[subCmdArgs[1]]
-	if !ok {
-		record.Error(subCmdArgs[1]+":", "dimension not found")
+		return record.FmtError(id+":", "dimension not found")
 	}
 
 	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
-		record.Error("parse command line args:", err)
+		return record.FmtError("parse command line args:", err)
 	}
 
-	if indexSet[0] < 0 || indexSet[0] >= len(config.Dimension[subCmdArgs[1]].Range) {
-		record.Error("number out of range:", indexSet[0])
+	dimension.Range, err = deleteSliceElements(dimension.Range, indexSet...)
+	if err != nil {
+		return record.FmtError("delete element:", err)
+	}
+	config.Dimension[id] = dimension
+
+	return commitConfig(configFilePath)
+}
+
+func modRange() error {
+	if len(subCmdArgs) < 7 {
+		return usageError("mc-saver mod-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>", "mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>")
+	}
+	worldDirPath := fmtPath(subCmdArgs[0])
+	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
+	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+		return err
 	}
 
-	config.Dimension[subCmdArgs[1]].Range[indexSet[0]] = save.RangeConfig{
+	id := subCmdArgs[1]
+	dimension, ok := config.Dimension[id]
+	if !ok {
+		return record.FmtError(id+":", "dimension not found")
+	}
+
+	indexSet, err := convertIntArray(subCmdArgs[2:])
+	if err != nil {
+		return record.FmtError("parse command line args:", err)
+	}
+
+	index := indexSet[0]
+	if index < 0 || index >= len(dimension.Range) {
+		return record.FmtError("index out of range:", index)
+	}
+
+	dimension.Range[index] = save.RangeConfig{
 		From: save.Coordinate{
 			X: indexSet[1],
 			Y: indexSet[2],
@@ -123,9 +143,7 @@ func modRange() {
 			Y: indexSet[4],
 		},
 	}
+	config.Dimension[id] = dimension
 
-	err = saveConfig()
-	if err != nil {
-		record.Error("save config:", err)
-	}
+	return commitConfig(configFilePath)
 }

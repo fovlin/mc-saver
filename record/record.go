@@ -1,6 +1,7 @@
 package record
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -52,7 +53,6 @@ func Debug(value ...any) {
 	prefix := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Blue, "DEBUG")}
 	fmt.Fprint(os.Stdout, wrapPrefix(strings.Join(prefix, " ")))
 	fmt.Fprintln(os.Stdout, value...)
-	time.Sleep(3 * time.Second)
 }
 
 func ErrorNoExit(value ...any) {
@@ -74,4 +74,9 @@ func RunningInfo(run func() error, value ...any) error {
 		return err
 	}
 	return nil
+}
+
+func FmtError(v ...any) error {
+	fmtString, _ := strings.CutSuffix(fmt.Sprintln(v...), "\n")
+	return errors.New(fmtString)
 }
