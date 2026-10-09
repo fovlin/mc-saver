@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
@@ -18,10 +17,10 @@ var (
 	config     save.Config = save.NullConfig
 	subCmdArgs []string
 
-	useLegacyMode  bool
-	replMode       bool
-	configFileName string = "saver.json"
-	outputPath     string = "."
+	useLegacyMode     bool
+	replMode          bool
+	configFileName    string = "saver.json"
+	defaultOutputPath string = "."
 
 	defaultDimensionConfig = save.DimensionConfig{
 		Range: []save.RangeConfig{
@@ -65,66 +64,42 @@ func usageError(argsLine string, replArgsLine string) error {
 	return record.FmtError("syntax error, usage:", usage)
 }
 
-func formatOutputPath(worldDirPath string, outputPath string) (string, error) {
-	worldAbsPath, err := filepath.Abs(worldDirPath)
+func initOutputDir(inputPath string) (string, error) {
+	absPath, err := filepath.Abs(inputPath)
 	if err != nil {
 		return "", fmt.Errorf("load absolute path: %w", err)
 	}
-	worldDirName := filepath.Base(worldAbsPath)
 
-	outputFileInfo, err := os.Stat(outputPath)
-	switch true {
-
-	case os.IsNotExist(err):
-		err = os.MkdirAll(filepath.Dir(outputPath), 0755)
-		if err != nil {
-			return "", fmt.Errorf("create output directory: %v", err)
-		}
-		return outputPath, nil
-
-	case err != nil:
-		return "", fmt.Errorf("read file info: %v", err)
-
-	case outputFileInfo.IsDir():
-		archiveFilePath := filepath.Join(outputPath, worldDirName+"-"+time.Now().Format(time.DateOnly)+".zip")
-		archiveFilePath, err = addSubfixBeforeExt(archiveFilePath)
-		if err != nil {
-			return "", fmt.Errorf("add subfix: %v", err)
-		}
-		return archiveFilePath, nil
-
-	default:
-		archiveFilePath, err := addSubfixBeforeExt(outputPath)
-		if err != nil {
-			return "", fmt.Errorf("add subfix: %v", err)
-		}
-		return archiveFilePath, nil
+	outputPathStat, err := os.Stat(absPath)
+	
+	if outputPathStat.IsDir() {
+		return absPath, nil
 	}
+
+	return path.Dir(absPath), nil
 }
 
-func addSubfixBeforeExt(archiveFilePath string) (string, error) {
-	dirPath := filepath.Dir(archiveFilePath)
-	nameArr := strings.FieldsFunc(filepath.Base(archiveFilePath), func(char rune) bool {
-		return char == '.'
-	})
+func addSubfixBeforeExt(outputPath string) (string, error) {
+	resultPath := outputPath
 
-	for number := 1; ; number++ {
-		basePath := nameArr[0] + "-" + fmt.Sprint(number)
-		for _, ext := range nameArr[1:] {
-			basePath += "." + ext
-		}
-
-		stat, err := os.Stat(filepath.Join(dirPath, basePath))
+	for number := 0; number >= 0; number++ {
+		_, err := os.Stat(resultPath)
 		if os.IsNotExist(err) {
-			return filepath.Join(dirPath, basePath), nil
+			return filepath.Join(resultPath), nil
 		}
-		if err != nil {
-			return "", fmt.Errorf("read file info: %v", err)
-		}
-		if !stat.IsDir() {
-			continue
-		}
+
+		resultPath = outputPath
+
+		dir := path.Dir(resultPath)
+		name := path.Base(resultPath)
+		ext := path.Ext(name)
+		pureName, _ := strings.CutSuffix(name, ext)
+		pureName += fmt.Sprint("-", number)
+
+		resultPath = path.Join(dir, fmt.Sprint(pureName, ext))
 	}
+
+	return resultPath, nil
 }
 
 func deleteSliceElements[T comparable](arr []T, index ...int) ([]T, error) {

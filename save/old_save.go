@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"strings"
@@ -48,9 +47,9 @@ func SaveOldDimensionFile(root *os.Root, config Config, zipWriter *zip.Writer, s
 		}
 
 		if dimensionRootDirStat, err := root.Stat(dimensionRootDirPath); err != nil {
-			return fmt.Errorf("(open dimension root directory) %w", err)
+			return fmt.Errorf("open dimension root directory: %w", err)
 		} else if !dimensionRootDirStat.IsDir() {
-			return fmt.Errorf("(open dimension root directory) %v: %w", dimensionRootDirPath, errors.New("not a directory"))
+			return fmt.Errorf("open dimension root directory: %v: %w", dimensionRootDirPath, errors.New("not a directory"))
 		}
 
 		for _, rangeRule := range dimensionRule.Range {
@@ -80,35 +79,20 @@ func SaveOldDimensionFile(root *os.Root, config Config, zipWriter *zip.Writer, s
 			}
 		}
 
-		dimensionDataDirName := path.Join("dimensions", namespace, dimensionID, "data")
+		dimensionDataDirName := path.Join(dimensionRootDirPath, "data")
 		_, err := root.Stat(dimensionDataDirName)
-		if !os.IsNotExist(err) {
-			dimensionDataRootDir, err := root.OpenRoot(dimensionDataDirName)
-			if err != nil {
-				return err
-			}
-			defer dimensionDataRootDir.Close()
 
-			err = fs.WalkDir(dimensionDataRootDir.FS(), ".", func(subFilePath string, d fs.DirEntry, err error) error {
+		if os.IsNotExist(err) {
+			continue
+		}
 
-				if err != nil {
-					return fmt.Errorf("(open dimension directory) %w", err)
-				}
+		if err != nil {
+			return fmt.Errorf("open dimension data directory: %w", err)
+		}
 
-				dataFileName := path.Join(dimensionDataDirName, subFilePath)
-
-				if !d.IsDir() {
-					err := saveFile(dataFileName, zipWriter)
-					if err != nil {
-						return fmt.Errorf("%w", err)
-					}
-				}
-
-				return nil
-			})
-			if err != nil {
-				return fmt.Errorf("(open dimension directory) "+dimensionDataDirName+": %w", err)
-			}
+		err = saveDirInRoot(zipWriter, root, dimensionDataDirName, saveFile)
+		if err != nil {
+			return fmt.Errorf("save directory: %w", err)
 		}
 	}
 	return nil

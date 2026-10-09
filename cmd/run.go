@@ -13,6 +13,9 @@ func run() error {
 	if len(subCmdArgs) < 1 {
 		return usageError("mc-saver run <world> [output]", "run [output]")
 	}
+
+	var outputPath = fmtPath(defaultOutputPath)
+
 	if len(subCmdArgs) > 1 {
 		outputPath = subCmdArgs[1]
 	}
@@ -29,7 +32,7 @@ func run() error {
 	}
 	defer root.Close()
 
-	zipWriter, _, end, err := initZipWriter(worldDirPath)
+	zipWriter, close, err := initZipWriter(outputPath)
 	if err != nil {
 		return record.FmtError("init zip writer:", err)
 	}
@@ -46,12 +49,21 @@ func run() error {
 	}
 
 	if saveErr != nil {
-		return record.FmtError(end(saveErr))
+		err = close(saveErr)
+		if err != nil {
+			return err
+		}
+
+		return saveErr
 	}
 
-	if err := end(nil); err != nil {
+	err = close(nil)
+	if err != nil {
 		return record.FmtError("close file writer:", err)
 	}
+
+	record.Info("zip writer closed")
+	record.Info("backup completed successfully!")
 
 	return nil
 }

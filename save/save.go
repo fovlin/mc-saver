@@ -131,33 +131,18 @@ func SaveDimensionFile(root *os.Root, config Config, zipWriter *zip.Writer, save
 
 		dimensionDataDirName := path.Join("dimensions", namespace, dimensionID, "data")
 		_, err = root.Stat(dimensionDataDirName)
-		if !os.IsNotExist(err) {
-			dimensionDataRootDir, err := root.OpenRoot(dimensionDataDirName)
-			if err != nil {
-				return err
-			}
-			defer dimensionDataRootDir.Close()
 
-			err = fs.WalkDir(dimensionDataRootDir.FS(), ".", func(subFilePath string, d fs.DirEntry, err error) error {
+		if os.IsNotExist(err) {
+			continue
+		}
 
-				if err != nil {
-					return fmt.Errorf("open dimension directory: %w", err)
-				}
+		if err != nil {
+			return fmt.Errorf("open dimension data directory: %w", err)
+		}
 
-				dataFileName := path.Join(dimensionDataDirName, subFilePath)
-
-				if !d.IsDir() {
-					err := saveFile(dataFileName, zipWriter)
-					if err != nil {
-						return fmt.Errorf("%w", err)
-					}
-				}
-
-				return nil
-			})
-			if err != nil {
-				return fmt.Errorf("open dimension directory: "+dimensionDataDirName+": %w", err)
-			}
+		err = saveDirInRoot(zipWriter, root, dimensionDataDirName, saveFile)
+		if err != nil {
+			return fmt.Errorf("save directory: %w", err)
 		}
 	}
 	return nil
@@ -169,42 +154,20 @@ func SaveRootDataFile(root *os.Root, config Config, zipWriter *zip.Writer, saveF
 
 		fileStat, err := root.Stat(file)
 		if err != nil {
-			return fmt.Errorf(":open file: %w", err)
+			return fmt.Errorf("open file: %w", err)
 		}
 
-		switch fileStat.IsDir() {
-
-		case false:
+		if !fileStat.IsDir() {
 			err := saveFile(file, zipWriter)
 			if err != nil {
 				return err
 			}
-		case true:
-			rootDataRootDir, err := root.OpenRoot(file)
-			if err != nil {
-				return err
-			}
-			defer rootDataRootDir.Close()
+			continue
+		}
 
-			err = fs.WalkDir(rootDataRootDir.FS(), ".", func(subFilePath string, d fs.DirEntry, err error) error {
-				if err != nil {
-					return fmt.Errorf("open dimension data directory: %w", err)
-				}
-
-				fullFilePath := path.Join(file, subFilePath)
-
-				if !d.IsDir() {
-					err := saveFile(fullFilePath, zipWriter)
-					if err != nil {
-						return err
-					}
-				}
-
-				return nil
-			})
-			if err != nil {
-				return fmt.Errorf("open directory: %w", err)
-			}
+		err = saveDirInRoot(zipWriter, root, file, saveFile)
+		if err != nil {
+			return fmt.Errorf("save directory: %w", err)
 		}
 	}
 	return nil
@@ -257,4 +220,39 @@ func NewRangeIterator(fromX int, fromY int, toX int, toY int) RangeIterator {
 		ToX:   toX,
 		ToY:   toY,
 	}
+}
+
+func saveDirInRoot(zipWriter *zip.Writer, root *os.Root, file string, saveFile saveFile) error {
+	subDirRoot, err := root.OpenRoot(file)
+	if err != nil {
+		return err
+	}
+
+	walkErr := fs.WalkDir(subDirRoot.FS(), ".", func(subFilePath string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return fmt.Errorf("walk directory: %w", err)
+		}
+
+		fullFilePath := path.Join(file, subFilePath)
+
+		if !d.IsDir() {
+			err := saveFile(fullFilePath, zipWriter)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	err = subDirRoot.Close()
+	if err != nil {
+		return err
+	}
+
+	if walkErr != nil {
+		return fmt.Errorf("open directory: %w", walkErr)
+	}
+
+	return nil
 }
