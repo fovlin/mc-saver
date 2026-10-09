@@ -9,163 +9,141 @@ import (
 	"acovia.net/record"
 )
 
-// repl is command for world.
+var replOnlyCmd map[string]func() error
 
-var (
-	replNoArgsCmd = map[string]func() error{
-		"exit":   exit,
-		"select": replNoArgsSelectWorld,
+func init() {
+	replOnlyCmd = map[string]func() error{
+		"select": selectWorld,
 		"help":   replHelp,
+		"exit":   exit,
 	}
-)
+}
 
-func repl() (err error) {
+func repl() error {
+	replMode = true
+
+	scanner := bufio.NewScanner(os.Stdin)
+
 	if len(subCmdArgs) < 1 {
-		err = replNoArgs()
+		err := askWorld(scanner)
 		if err != nil {
 			return err
 		}
 	}
 
 	if len(subCmdArgs) > 0 {
-		worldDirPath = subCmdArgs[0]
-		err = initWorldConfig()
-		if err != nil {
+		if err := initWorld(subCmdArgs[0]); err != nil {
 			return err
 		}
 	}
 
 	record.Info("==== MC-SAVER Repl Mode ====")
-	record.Info("selected:", subCmdArgs[0])
-	record.Info("type 'help' for commands, 'exit' or 'quit' to quit repl mode ")
+	record.Info("type 'help' for commands, 'exit' to quit repl mode")
 
-	scanner := bufio.NewScanner(os.Stdin)
+	return replLoop(scanner)
+}
 
+func replLoop(scanner *bufio.Scanner) error {
 	for {
 		fmt.Print("mc-saver > ")
 		if !scanner.Scan() {
 			break
 		}
 
-		line := strings.TrimSpace(scanner.Text()) // remove the space char.
-		args = strings.Fields(line)               // Get text slices by Fields()
-		if len(args) == 0 {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
 			continue
 		}
 
-		cmd = args[0]                                    // get the command header
-		subCmdArgs = append(subCmdArgs[:1], args[1:]...) // get the command arguments
-		replSpecFunc, ok := replCmdMap[args[0]]
-		if ok {
-			err = replSpecFunc()
-			if err != nil {
-				record.ErrorNoExit(err)
-			}
-			continue
-		}
-
-		err := runReplCmd()
-		if err != nil {
+		if err := replExec(line); err != nil {
 			record.ErrorNoExit(err)
-			continue
 		}
-	}
-	// Error Check
 
-	if err := scanner.Err(); err != nil {
-		return formatError("scanner error:", err)
+		clear(subCmdArgs[1:])
 	}
 
-	return nil
+	return scanner.Err()
 }
 
-func replNoArgs() (err error) {
-	scanner := bufio.NewScanner(os.Stdin)
-	for len(subCmdArgs) == 0 {
-		record.Info("no world selected, please run: 'select <world>'")
+// replExec runs a single repl line against the selected world.
+func replExec(line string) error {
+	fields := strings.Fields(line)
+	cmd = fields[0]
+	subCmdArgs = append(subCmdArgs[:1], fields[1:]...)
+
+	function, ok := replOnlyCmd[cmd]
+	if ok {
+		return function()
+	}
+
+	function, ok = cmdMap[cmd]
+	if ok {
+		return function()
+	}
+
+	return record.FmtError("unknown command:", cmd)
+}
+
+func askWorld(scanner *bufio.Scanner) (err error) {
+	record.Info("no world selected, please run: 'select <world>'")
+
+	for {
 		fmt.Print("mc-saver: > ")
 		if !scanner.Scan() {
-			break
+			fmt.Println()
+			return record.FmtError("input is empty")
 		}
 
-		line := strings.TrimSpace(scanner.Text()) // remove the space char.
-		args = strings.Fields(line)               // Get text slices by Fields()
-		if len(args) == 0 {
+		fields := strings.Fields(strings.TrimSpace(scanner.Text()))
+		if len(fields) == 0 {
 			continue
 		}
-		cmd = args[0]
-		replSpecFunc, ok := replNoArgsCmd[cmd]
-		if ok {
-			err = replSpecFunc()
+
+		switch fields[0] {
+
+		case "select":
+			if len(fields) < 2 {
+				record.ErrorNoExit(record.FmtError("syntax error, usage: select <world>"))
+				continue
+			}
+
+			err = initWorld(fields[1])
 			if err != nil {
 				record.ErrorNoExit(err)
+				continue
 			}
-			continue
-		} else {
-			record.ErrorNoExit("unknow command:", cmd)
+
+			subCmdArgs = []string{fields[1]}
+			return nil
+
+		case "help":
+			if err := replHelp(); err != nil {
+				record.ErrorNoExit(err)
+			}
+
+		case "exit":
+			exit()
+
+		default:
+			record.ErrorNoExit("unknown command:", fields[0])
 		}
 	}
+}
 
-	err = scanner.Err()
+func selectWorld() error {
+	if len(subCmdArgs) < 2 {
+		return record.FmtError("syntax error, usage: select <world>")
+	}
+	err := initWorld(subCmdArgs[1])
 	if err != nil {
 		return err
 	}
 
+	subCmdArgs = []string{subCmdArgs[1]}
 	return nil
 }
 
-func runReplCmd() (err error) {
-	cmdFunc, ok := replCmdMap[cmd]
-	if !ok {
-		return formatError("unknow command:", cmd)
-	}
-	err = cmdFunc()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func replHelp() (err error) {
-	fmt.Println(replHelpInfo)
-	return nil
-}
-
-func exit() (err error) {
+func exit() error {
 	os.Exit(0)
 	return nil
-}
-
-func replSelectWorld() (err error) {
-	if len(subCmdArgs) < 2 {
-		return formatError("syntax error, usage: select <world>")
-	}
-
-	worldDirPath = subCmdArgs[1]
-	err = initWorldConfig()
-	if err != nil {
-		return formatError(err)
-	}
-
-	subCmdArgs[0] = subCmdArgs[1]
-
-	return err
-}
-
-func replNoArgsSelectWorld() (err error) {
-	if len(args) < 2 {
-		return formatError("syntax error, usage: select <world>")
-	}
-
-	subCmdArgs = []string{args[1]}
-	worldDirPath = subCmdArgs[0]
-
-	err = initWorldConfig()
-	if err != nil {
-		subCmdArgs = make([]string, 0)
-		return formatError(err)
-	}
-
-	return err
 }

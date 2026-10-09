@@ -12,9 +12,8 @@ import (
 	"acovia.net/record"
 )
 
-func initZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
-
-	archiveFilePath, err := formatOutputPath(outputPath)
+func initZipWriter(worldDirPath string) (*zip.Writer, *os.File, func(error) error, error) {
+	archiveFilePath, err := formatOutputPath(worldDirPath, outputPath)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("format output path: %v", err)
 	}
@@ -27,7 +26,6 @@ func initZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
 	zipWriter := zip.NewWriter(file)
 
 	end := func(err error) error {
-
 		if err != nil {
 			if removeErr := os.Remove(file.Name()); removeErr != nil {
 				return errors.Join(err, removeErr)
@@ -44,14 +42,17 @@ func initZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
 			os.Remove(file.Name())
 			return fmt.Errorf("close file writer: %v", err)
 		}
+
 		record.Info("backup completed successfully!")
 		return nil
 	}
+
 	return zipWriter, file, end, nil
 }
 
-func saveFile(fileName string, zipWriter *zip.Writer) error {
-
+// writeFileToZip adds one entry of the world to the archive, keeping the world
+// directory name as the leading path inside the zip.
+func writeFileToZip(root *os.Root, fileName string, zipWriter *zip.Writer) error {
 	fileReader, err := root.Open(fileName)
 	if os.IsNotExist(err) {
 		record.Warn("skip file:", err)
@@ -59,7 +60,6 @@ func saveFile(fileName string, zipWriter *zip.Writer) error {
 	} else if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}
-
 	defer fileReader.Close()
 
 	fileInfo, err := root.Stat(fileName)
@@ -73,7 +73,6 @@ func saveFile(fileName string, zipWriter *zip.Writer) error {
 	}
 
 	headerName := path.Join(path.Base(root.Name()), fileName)
-
 	zipFileHeader.Name = headerName
 	zipFileHeader.Method = zip.Deflate
 
@@ -82,19 +81,20 @@ func saveFile(fileName string, zipWriter *zip.Writer) error {
 		return fmt.Errorf("create file: %v", err)
 	}
 
-	if err = record.RunningInfo(func() error {
-		_, err = io.Copy(file, fileReader)
-		if err != nil {
+	err = record.RunningInfo(func() error {
+		if _, err := io.Copy(file, fileReader); err != nil {
 			return fmt.Errorf("write file: %v", err)
 		}
 		return nil
-	}, "adding: ", headerName); err != nil {
+	}, "adding: ", headerName)
+	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func saveConfig() error {
+func saveConfig(configFilePath string) error {
 	jsonData, err := json.MarshalIndent(config, "", "	")
 	if err != nil {
 		return fmt.Errorf("encode json: %w", err)
@@ -103,6 +103,15 @@ func saveConfig() error {
 	err = os.WriteFile(configFilePath, jsonData, 0644)
 	if err != nil {
 		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
+}
+
+// commitConfig writes the rule file back after a command changed it.
+func commitConfig(configFilePath string) error {
+	if err := saveConfig(configFilePath); err != nil {
+		return record.FmtError("save config:", err)
 	}
 
 	return nil

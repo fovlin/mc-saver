@@ -2,42 +2,29 @@ package main
 
 import (
 	"fmt"
+	"path"
 	"strconv"
+
+	"acovia.net/record"
 )
 
-func listFile() (err error) {
+func listFile() error {
 	if len(subCmdArgs) < 1 {
-		return formatError("syntax error, usage: mc-saver list-file <world>")
+		return usageError("mc-saver list-file <world>", "list-file")
 	}
-
-	err = listFileFunc()
-	if err != nil {
+	worldDirPath := fmtPath(subCmdArgs[0])
+	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
+	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
 		return err
 	}
+
+	printFileRules()
 
 	return nil
 }
 
-func replListFile() (err error) {
-	if len(subCmdArgs) < 1 {
-		return formatError("syntax error, usage: list-file")
-	}
-
-	err = listFileFunc()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func listFileFunc() (err error) {
-	worldDirPath = subCmdArgs[0]
-	err = initWorldConfig()
-	if err != nil {
-		return err
-	}
-
+// printFileRules prints the file rules of the loaded config.
+func printFileRules() {
 	if len(config.File) == 0 {
 		fmt.Println("no file config")
 	}
@@ -45,152 +32,66 @@ func listFileFunc() (err error) {
 	for i, v := range config.File {
 		fmt.Printf("- %v: %q\n", i, v)
 	}
-
-	return nil
 }
 
-func addFile() (err error) {
+func addFile() error {
 	if len(subCmdArgs) < 2 {
-		return formatError("syntax error, usage: mc-saver add-file <world> <file_name>...")
+		return usageError("mc-saver add-file <world> <file_name>...", "add-file <file_name>...")
 	}
-
-	err = addFileFunc()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func replAddFile() (err error) {
-	if len(subCmdArgs) < 2 {
-		return formatError("syntax error, usage: add-file <file_name>...")
-	}
-
-	err = addFileFunc()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func addFileFunc() (err error) {
-	worldDirPath = subCmdArgs[0]
-	err = initWorldConfig()
-	if err != nil {
+	worldDirPath := fmtPath(subCmdArgs[0])
+	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
+	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
 		return err
 	}
 
 	config.File = append(config.File, subCmdArgs[1:]...)
 
-	err = saveConfig()
-	if err != nil {
-		return formatError("save config:", err)
-	}
-
-	return nil
+	return commitConfig(configFilePath)
 }
 
-func delFile() (err error) {
+func delFile() error {
 	if len(subCmdArgs) < 2 {
-		return formatError("syntax error, usage: mc-saver del-file <world> <number>...")
+		return usageError("mc-saver del-file <world> <index>...", "del-file <index>...")
 	}
-
-	err = delFileFunc()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func replDelFile() (err error) {
-	if len(subCmdArgs) < 2 {
-		return formatError("syntax error, usage: del-file <number>...")
-	}
-
-	err = delFileFunc()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func delFileFunc() (err error) {
-	worldDirPath = subCmdArgs[0]
-	err = initWorldConfig()
-	if err != nil {
+	worldDirPath := fmtPath(subCmdArgs[0])
+	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
+	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
 		return err
 	}
 
 	indexSet, err := convertIntArray(subCmdArgs[1:])
 	if err != nil {
-		return formatError("parse command line args:", err)
+		return record.FmtError("parse command line args:", err)
 	}
 
 	config.File, err = deleteSliceElements(config.File, indexSet...)
 	if err != nil {
-		return formatError("delete element:", err)
+		return record.FmtError("delete element:", err)
 	}
 
-	err = saveConfig()
-	if err != nil {
-		return formatError("save config:", err)
-	}
-
-	return nil
+	return commitConfig(configFilePath)
 }
 
-func modFile() (err error) {
+func modFile() error {
 	if len(subCmdArgs) < 3 {
-		return formatError("syntax error, usage: mc-saver mod-file <world> <number> <file_name>")
+		return usageError("mc-saver mod-file <world> <index> <file_name>", "mod-file <index> <file_name>")
 	}
-
-	err = modFileFunc()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func replModFile() (err error) {
-	if len(subCmdArgs) < 3 {
-		return formatError("syntax error, usage: mod-file <number> <file_name>")
-	}
-
-	err = modFileFunc()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func modFileFunc() (err error) {
-	worldDirPath = subCmdArgs[0]
-	err = initWorldConfig()
-	if err != nil {
+	worldDirPath := fmtPath(subCmdArgs[0])
+	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
+	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
 		return err
 	}
 
 	index, err := strconv.ParseInt(subCmdArgs[1], 10, 32)
 	if err != nil {
-		return formatError("parse command line args:", err)
+		return record.FmtError("parse command line args:", err)
 	}
 
 	if index < 0 || int(index) >= len(config.File) {
-		return formatError("index out of range:", index)
+		return record.FmtError("index out of range:", index)
 	}
 
 	config.File[index] = subCmdArgs[2]
 
-	err = saveConfig()
-	if err != nil {
-		return formatError("save config:", err)
-	}
-
-	return nil
+	return commitConfig(configFilePath)
 }

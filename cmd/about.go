@@ -2,8 +2,9 @@ package main
 
 import "fmt"
 
-// About the content for 'about'
 func about() error {
-	fmt.Println(``) // 为什么是空的？！ @Fovlin
+	fmt.Println("mc-saver - selective Minecraft world backup tool")
+	fmt.Println("https://github.com/fovlin/mc-saver")
+	fmt.Println("license: GNU General Public License v3")
 	return nil
 }

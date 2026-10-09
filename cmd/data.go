@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -11,24 +10,18 @@ import (
 	"time"
 
 	"acovia.net/minecraft/save"
+	"acovia.net/record"
 )
 
 var (
-	args           []string
-	cmd            string
-	config         save.Config = save.NullConfig
-	configFilePath string
-	subCmdArgs     []string
+	cmd        string
+	config     save.Config = save.NullConfig
+	subCmdArgs []string
 
-	useLegacyMode  bool   = false
-	worldDirPath   string = "world"
+	useLegacyMode  bool
+	replMode       bool
 	configFileName string = "saver.json"
 	outputPath     string = "."
-
-	// Declare the commandMapping Func :
-	cmdMap     map[string]func() error
-	replCmdMap map[string]func() error
-	root       *os.Root
 
 	defaultDimensionConfig = save.DimensionConfig{
 		Range: []save.RangeConfig{
@@ -60,245 +53,77 @@ var (
 	}
 )
 
-// cmdMapping func init :
-func init() {
-	cmdMap = map[string]func() error{
-		"run":         run,
-		"gencfg":      gencfg,
-		"help":        help,
-		"list":        list,
-		"list-config": listConfig,
-		"list-dms":    listDms,
-		"add-dms":     addDms,
-		"del-dms":     delDms,
-		"mod-dms":     modDms,
-		"list-range":  listRange,
-		"add-range":   addRange,
-		"del-range":   delRange,
-		"mod-range":   modRange,
-		"list-simple": listSimple,
-		"add-simple":  addSimple,
-		"del-simple":  delSimple,
-		"mod-simple":  modSimple,
-		"list-file":   listFile,
-		"add-file":    addFile,
-		"del-file":    delFile,
-		"mod-file":    modFile,
-		"repl":        repl,
-		"about":       about,
-	}
+func usageError(argsLine string, replArgsLine string) error {
+	var usage string
+	switch true {
+	case replMode:
+		usage = replArgsLine
 
-	replCmdMap = map[string]func() error{
-		"run":         replRun,
-		"gencfg":      replGencfg,
-		"list":        replList,
-		"list-config": replListConfig,
-		"list-dms":    replListDms,
-		"add-dms":     replAddDms,
-		"del-dms":     replDelDms,
-		"mod-dms":     replModDms,
-		"list-range":  replListRange,
-		"add-range":   replAddRange,
-		"del-range":   replDelRange,
-		"mod-range":   replModRange,
-		"list-simple": replListSimple,
-		"add-simple":  replAddSimple,
-		"del-simple":  replDelSimple,
-		"mod-simple":  replModSimple,
-		"list-file":   replListFile,
-		"add-file":    replAddFile,
-		"del-file":    replDelFile,
-		"mod-file":    replModFile,
-
-		"about":  about,
-		"select": replSelectWorld,
-		"help":   replHelp,
-		"exit":   exit,
+	case !replMode:
+		usage = argsLine
 	}
+	return record.FmtError("syntax error, usage:", usage)
 }
 
-var helpInfo = `mc-saver [-l] [-color] <command> <world> [args...]
-
-every command takes the world directory as its first argument, and the rule
-file is read from <world>/saver.json. run "gencfg <world>" first to create it.
-
-backup command:
-
-	run <world> [output]
-		back up <world> according to <world>/saver.json.
-		output defaults to ".", where a dated zip is created.
-
-	gencfg <world>
-		write the default rule file to <world>/saver.json.
-		throw error if the file is already existed.
-
-	repl <world>
-		enter interactive repl mode for <world>.
-
-	help
-		print this help text.
-		
-	about
-		The information and copyright about this kit.
-
-config command:
-
-	indices are 0-based, as shown by the list commands. an index outside the
-	list is an error for both the mod and the delete commands.
-
-	list <world>
-		list all dimension rules and file rules.
-
-	list-config <world> <dimension>...
-		list both range rules and simple rules of a dimension.
-
-	list-dms <world>
-		list dimension namespace ids.
-
-	add-dms <world> <dimension>...
-		add a dimension with the default range rule.
-
-	del-dms <world> <dimension>...
-		delete a dimension.
-
-	mod-dms <world> <old_dimension> <new_dimension>
-		rename a dimension, keeping its rules.
-
-	list-range <world> <dimension>...
-		list range rules of a dimension.
-
-	add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>
-		add a range rule to a dimension.
-
-	del-range <world> <dimension> <index>...
-		delete the range rules of the given indices.
-
-	mod-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>
-		replace the range rule at the given index.
-
-	list-simple <world> <dimension>...
-		list simple rules of a dimension.
-
-	add-simple <world> <dimension> <x> <y>
-		add a simple rule to a dimension.
-
-	del-simple <world> <dimension> <index>...
-		delete the simple rules of the given indices.
-
-	mod-simple <world> <dimension> <index> <x> <y>
-		replace the simple rule at the given index.
-
-	list-file <world>
-		list file rules.
-
-	add-file <world> <name>...
-		add one or more file rules.
-
-	del-file <world> <index>...
-		delete the file rules of the given indices.
-
-	mod-file <world> <index> <name>
-		replace the file rule at the given index.
-
-options:
-
-	-l
-		legacy world mode, for worlds from before 1.21.11.
-
-	-color
-		enable color output.
-`
-
-var replHelpInfo = `repl commands (world argument is implicit):
-  list                 - list all dimension rules and file rules
-  list-config <dimension>...  - list range and simple rules of dimension(s)
-  list-dms             - list dimension namespace ids
-  add-dms <dimension>...      - add dimension(s) with default range rule
-  del-dms <dimension>...      - delete dimension(s)
-  mod-dms <old> <new>         - rename a dimension
-  list-range <dimension>...   - list range rules of dimension(s)
-  add-range <dimension> <from_x> <from_y> <to_x> <to_y>  - add range rule
-  del-range <dimension> <index>...  - delete range rule(s) by index
-  mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>  - modify range rule
-  list-simple <dimension>...  - list simple rules of dimension(s)
-  add-simple <dimension> <x> <y>  - add simple rule
-  del-simple <dimension> <index>...  - delete simple rule(s) by index
-  mod-simple <dimension> <index> <x> <y>  - modify simple rule
-  list-file            - list file rules
-  add-file <name>...   - add file rule(s)
-  del-file <index>...  - delete file rule(s) by index
-  mod-file <index> <name>  - modify file rule
-  help                 - show this help
-  about				   - show the information and copyright about this kit.
-  exit / quit          - leave repl mode`
-
-func formatOutputPath(archiveFilePath string) (string, error) {
-
-	worldAbsPath, err := filepath.Abs(archiveFilePath)
+func formatOutputPath(worldDirPath string, outputPath string) (string, error) {
+	worldAbsPath, err := filepath.Abs(worldDirPath)
 	if err != nil {
 		return "", fmt.Errorf("load absolute path: %w", err)
 	}
-
-	worldDirName := path.Base(worldAbsPath)
+	worldDirName := filepath.Base(worldAbsPath)
 
 	outputFileInfo, err := os.Stat(outputPath)
 	switch true {
 
 	case os.IsNotExist(err):
-		err = os.MkdirAll(path.Dir(outputPath), 0755)
+		err = os.MkdirAll(filepath.Dir(outputPath), 0755)
 		if err != nil {
 			return "", fmt.Errorf("create output directory: %v", err)
 		}
-		archiveFilePath = outputPath
+		return outputPath, nil
 
-	case !os.IsNotExist(err) && err != nil:
+	case err != nil:
 		return "", fmt.Errorf("read file info: %v", err)
 
 	case outputFileInfo.IsDir():
-		archiveFileName := worldDirName + "-" + time.Now().Format(time.DateOnly) + ".zip"
-		archiveFilePath = path.Join(outputPath, archiveFileName)
+		archiveFilePath := filepath.Join(outputPath, worldDirName+"-"+time.Now().Format(time.DateOnly)+".zip")
 		archiveFilePath, err = addSubfixBeforeExt(archiveFilePath)
 		if err != nil {
 			return "", fmt.Errorf("add subfix: %v", err)
 		}
+		return archiveFilePath, nil
 
 	default:
-		archiveFilePath, err = addSubfixBeforeExt(outputPath)
+		archiveFilePath, err := addSubfixBeforeExt(outputPath)
 		if err != nil {
 			return "", fmt.Errorf("add subfix: %v", err)
 		}
+		return archiveFilePath, nil
 	}
-
-	return archiveFilePath, nil
 }
 
 func addSubfixBeforeExt(archiveFilePath string) (string, error) {
-	basePath := path.Base(archiveFilePath)
-	dirPath := path.Dir(archiveFilePath)
-	nameArr := strings.FieldsFunc(basePath, isExtKeyWord)
+	dirPath := filepath.Dir(archiveFilePath)
+	nameArr := strings.FieldsFunc(filepath.Base(archiveFilePath), func(char rune) bool {
+		return char == '.'
+	})
+
 	for number := 1; ; number++ {
-		var subfix string = "-" + fmt.Sprint(number)
-		basePath = nameArr[0] + subfix
+		basePath := nameArr[0] + "-" + fmt.Sprint(number)
 		for _, ext := range nameArr[1:] {
 			basePath += "." + ext
 		}
-		stat, err := os.Stat(path.Join(dirPath, basePath))
+
+		stat, err := os.Stat(filepath.Join(dirPath, basePath))
 		if os.IsNotExist(err) {
-			break
-		} else if err != nil && !os.IsNotExist(err) {
+			return filepath.Join(dirPath, basePath), nil
+		}
+		if err != nil {
 			return "", fmt.Errorf("read file info: %v", err)
-		} else if !stat.IsDir() || !os.IsNotExist(err) {
+		}
+		if !stat.IsDir() {
 			continue
 		}
-	}
-	return path.Join(dirPath, basePath), nil
-}
-
-func isExtKeyWord(char rune) bool {
-	if char == rune("."[0]) {
-		return true
-	} else {
-		return false
 	}
 }
 
@@ -338,22 +163,12 @@ func convertIntArray(array []string) ([]int, error) {
 	return intList, nil
 }
 
-func loadSubCmdArgs() []string {
-	if len(args) > 1 {
-		return args[1:]
-	}
-	return nil
+func fmtPath(input string) (output string) {
+	output = strings.ReplaceAll(input, "\\", "/")
+	output = path.Clean(output)
+	return output
 }
 
-func formatError(v ...any) error {
-	fmtString, _ := strings.CutSuffix(fmt.Sprintln(v...), "\n")
-	return errors.New(fmtString)
-}
-
-func fileIsExisted(name string) bool {
-	_, err := os.Stat(name)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
+func isPath(s string) bool {
+	return strings.HasPrefix(s, "./") || strings.HasPrefix(s, "/")
 }
