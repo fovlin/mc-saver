@@ -6,11 +6,6 @@ import (
 	"acovia.net/record"
 )
 
-// cmdMap holds every command, shared by cli and repl mode. The repl adds a few
-// names of its own on top of it, see replOnlyCmd.
-//
-// It is filled in init because repl reads the table back, which would otherwise
-// be an initialization cycle.
 var cmdMap map[string]func() error
 
 func init() {
@@ -42,9 +37,7 @@ func init() {
 }
 
 func main() {
-	if err := initProgram(); err != nil {
-		record.Error(err)
-	}
+	initProgram()
 
 	function, ok := cmdMap[cmd]
 	if !ok {
@@ -56,7 +49,7 @@ func main() {
 	}
 }
 
-func initProgram() error {
+func initProgram() {
 	flag.BoolFunc("l", "legacy world mode", func(string) error {
 		useLegacyMode = true
 		return nil
@@ -78,6 +71,4 @@ func initProgram() error {
 
 	cmd = args[0]
 	subCmdArgs = args[1:]
-
-	return nil
 }

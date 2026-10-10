@@ -2,15 +2,13 @@
 
 ## Contributing policy
 
-The projects of fovlin are all handwritten, and all projects reject AI coding.
-It is strictly forbidden to use AI audit results to submit as issues.
-If you can't accept it, please leave.
+- This project accept AI code, but it's forborden to generate all code by AI.
 
 ## Layout
 
 ```text
 mc-saver
-├── cmd/          CLI, module acovia.net/mc-saver
+├── cmd/               CLI, module acovia.net/mc-saver
 │   ├── main.go        entry point, flag parsing, the shared command table
 │   ├── repl.go        interactive mode and its own command names
 │   ├── data.go        shared state, message builders, pure helpers
@@ -25,111 +23,78 @@ mc-saver
 │   ├── simple.go      the simple command family
 │   ├── file.go        the file command family
 │   └── about.go       about command
-├── save/         backup engine: config loading, world walking, zip writing
-├── record/       logging helpers
-├── build.sh      cross-compile the release targets
-├── go.work       workspace tying the three modules together
-├── README.md     user documentation
-└── DEVELOP.md    this file
+├── save/              backup engine: config loading, world walking, zip writing
+│   ├── save.go        current layout: dimensions/<namespace>/<id>/, plus saveDirInRoot
+│   └── old_save.go    the `-l` layout: DIM-1 / DIM1 dimension roots
+├── record/            logging helpers
+├── build.sh           cross-compile the release targets
+├── go.work            workspace tying the three modules together
+├── README.md          user documentation
+└── DEVELOP.md         this file
 ```
 
 Build and run from the repo root:
 
 ```bash
-go build -o mc-saver ./cmd
+go build ./cmd
 ./mc-saver help
 ```
-
-Patterns resolve per module: use `go build ./cmd` or `go vet ./cmd/...`. A bare
-`./...` from the root does not match anything, because the root is not itself a module.
 
 ## Command layer
 
 ```
-mc-saver [-l] [-color] <command> <world> [args...]
+mc-saver [-l] [-color] [command] <world> [args...]
 ```
 
-Every command has the signature `func() error`. Two package-level values carry its
-input: `subCmdArgs` (`[world, args...]`) and `config`. A command never reports or exits
-by itself, the caller decides:
+## program
+
+Program has two mode:
 
 - cli mode: `main` prints the error with `record.Error` and stops.
 - repl mode: `replLoop` prints it with `record.ErrorNoExit` and keeps the session.
 
-`initProgram` fills `cmd` and `subCmdArgs`, and rewrites the arguments into `repl <path>`
-when the first one looks like a path (`./...` or `/...`). The repl builds the same
-`subCmdArgs` from the input line, which is what lets both modes share one implementation
-of every command.
+This program use `subCmdArgs` slice to store arguments from command line, compared to the usual command usage, the REPL mode omits the world directory argument.
 
-The world directory and the rule file path are **not** package-level: a command derives
-them with `fmtPath` and passes them down.
+The program behaves like:
 
-```go
-worldDirPath := fmtPath(subCmdArgs[0])
-configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
-	return err
-}
-```
+### Program runtime
 
-`initWorldConfig(worldDirPath, configFilePath)` validates the world and loads the rule
-file; `initConfig` creates an empty one when it is missing. Commands that change rules
-write them back with `commitConfig(configFilePath)`.
+Program will judge weather first argument is path, by judge weather start with `./` or `/`.
 
-`cmdMap` holds the commands shared by both modes. `replOnlyCmd` adds `select` and `exit`,
-and replaces `help` with the shorter repl text. Both tables are filled in `init` because
-`repl` reads them back, which would otherwise be an initialization cycle.
+Program will search command function from map `cmdMap`, if command found in this map, program will execute corresponding function, if not found in map, program will throw a `unknown command` error.
 
-Malformed invocations go through `usageError(argsLine, replArgsLine)`: both usage lines
-are written out per command, one for cli mode (`mc-saver run <world> [output]`) and one
-for repl mode (`run [output]`), so the two modes still share a single implementation.
+Some commands will read config from `<world>/saver.json` file, program will set config = nil if this file not found. 
 
-## Release
+Program store subcommand arguments in slice `subCmdMap`, subcommand function will read arguments from this slice.
 
-1. `bash build.sh` — compiles 6 targets (linux / darwin / windows × amd64 / arm64) and
-   leaves one `.tar.gz` per target in `build/`.
-2. `git tag vX.Y.Z && git push origin vX.Y.Z`
-3. Attach the six `build/*.tar.gz` files to the GitHub release.
+### Repl
 
-There is no automated test suite yet; smoke-test the commands by hand before tagging.
+Enter a repl, if you run with no arguments, program will ask world you want to selected, you neeed to run `select <world>` to select world, To run `mc-saver repl <world>`, or `mc-saver <world>` in CLI will enter repl with selected world, when selected, world path will be stored in `subCmdArgs[0]`, and will not reset unless run `select <world>` in repl.
 
-## Conventions
+### `list` commands
 
-- Commands return an error instead of printing it; only the cli entry point and the repl
-  loop report. `os.Exit` appears in `exit` (leaving the repl) and nowhere else.
-- User-facing messages (`record.Error` / `Info` / `Warn`, `fmt.Print*`) carry no trailing
-  period. An underlying error is appended after a colon: `record.Error("load config:", err)`.
-- Returned errors are lowercase, carry no punctuation, and wrap the cause with `%w`:
-  `fmt.Errorf("open file: %w", err)`. `formatError` is the helper for building them.
-- Version tags use a `v` prefix (`v1.2.0`).
-- Commands validate their arguments before loading the config, and validate every index
-  before touching it: an out-of-range index aborts the command and leaves the file unchanged.
+then call function to print config about you want to know.
 
-## Not a bug
+### `add` commands
 
-Intentional behaviours, in case they look like defects:
+These commands will read config and add rule to config, then save config to `<world>/saver.json`.
 
-- A missing rule file is created **empty** (no dimension and no file rules), so a world can
-  be inspected without a preparation step. `gencfg <world>` fills that empty file with the
-  defaults and refuses to touch one that already has rules ("config not empty").
-- Everything named in the rule file must exist in the world. A configured dimension whose
-  `dimensions/<namespace>/<id>` directory is missing, or a `file` entry that is missing,
-  aborts the whole backup instead of being skipped — silently skipping would hide a stale
-  config or a typo. Missing *region* files are skipped with a warning, and so is a whole
-  missing `region` directory inside an existing dimension, because those are world content
-  rather than declared input.
-- A rule file with no rules backs up nothing: the archive is created, holds zero entries and
-  the run still reports success.
-- `add-range` and `add-simple` create a dimension that is not configured yet; the other
-  dimension commands report an error instead. `del-dms` only warns when a dimension is absent.
-- A `range` whose `from` corner is larger than its `to` corner is not an error: the
-  rectangle is read as the bounding box of the two corners, so `5,5` to `1,1` covers the
-  same regions as `1,1` to `5,5`.
-- `-l` and `-color` are switches; `-l=false` is not part of the interface.
-- The config file format is not backward compatible — regenerate it with `gencfg` after
-  upgrading.
-- A region listed more than once in the config (duplicate or overlapping rules, or a
-  `range` and a `simple` covering the same region) is added to the archive once per
-  occurrence, so the archive can contain duplicate entries.
-- If the output name is already taken, a `-1` suffix is appended instead of failing or
-  overwriting the existing archive.
+### `del` commands
+
+These commands will read config and del rule with index number, then save config to `<world>/saver.json`.
+
+### `mod` commands
+
+These commands will read config and modify rule with index number, then save config to `<world>/saver.json`.
+
+### `run` commands
+
+`run` command start a backup, if output is not specify, program will use default output path `./` to save archive, program will create a temp file, and return a writer contain zip writer, file object and output path string, writer point to a temp file in directory at the same level as output path.
+
+Program will init output path with function `initOutputPath` before init writer, if target path is a directory, function will return a path named `<world_name-$time>` under directory.
+
+Program will call `Package()` method of writer to package archive, `Package()` will rename temp file to output path, program will add subfix at after file name and before extention name.
+
+### `gencfg` command
+
+this command will generate a default config if config is empty or config not found, program will throw a error if config is not empty.

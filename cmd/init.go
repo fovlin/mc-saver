@@ -31,18 +31,22 @@ func initWorld(worldDirPath string) error {
 }
 
 func initConfig(configFilePath string) error {
-	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
+	_, err := os.Stat(configFilePath)
+
+	switch true {
+	case os.IsNotExist(err):
 		config = save.NullConfig
-		if err := saveConfig(configFilePath); err != nil {
-			return record.FmtError("save config:", err)
+
+	case err != nil:
+		return record.FmtError("stat config:", err)
+
+	default:
+		loaded, err := save.LoadConfig(configFilePath)
+		if err != nil {
+			return record.FmtError("load config:", err)
 		}
+		config = loaded
 	}
 
-	loaded, err := save.LoadConfig(configFilePath)
-	if err != nil {
-		return record.FmtError("load config:", err)
-	}
-
-	config = loaded
 	return nil
 }

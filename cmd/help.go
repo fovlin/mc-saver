@@ -132,8 +132,15 @@ var replHelpInfo = `repl commands, the selected world is implicit:
 	del-file <index>...
 	mod-file <index> <name>
 
+	world                       print the selected world
 	select <world>              switch to another world
 	help                        print this help text
 	about                       print the information and copyright
+	exit                        leave repl mode
+`
+var askWorldHelpInfo = `repl selecter commands:
+
+	select <world>              switch to another world
+	help                        print this help text
 	exit                        leave repl mode
 `

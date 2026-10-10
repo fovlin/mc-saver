@@ -21,7 +21,6 @@ func listRange() error {
 	return printRangeRules(subCmdArgs[1:])
 }
 
-// printRangeRules prints the range rules of every given dimension.
 func printRangeRules(dimensions []string) error {
 	for _, id := range dimensions {
 		rule, ok := config.Dimension[id]

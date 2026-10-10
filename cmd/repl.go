@@ -13,6 +13,7 @@ var replOnlyCmd map[string]func() error
 
 func init() {
 	replOnlyCmd = map[string]func() error{
+		"world":  selectedWorld,
 		"select": selectWorld,
 		"help":   replHelp,
 		"exit":   exit,
@@ -37,7 +38,7 @@ func repl() error {
 		}
 	}
 
-	record.Info("==== MC-SAVER Repl Mode ====")
+	record.Info("selected:", subCmdArgs[0])
 	record.Info("type 'help' for commands, 'exit' to quit repl mode")
 
 	return replLoop(scanner)
@@ -65,7 +66,6 @@ func replLoop(scanner *bufio.Scanner) error {
 	return scanner.Err()
 }
 
-// replExec runs a single repl line against the selected world.
 func replExec(line string) error {
 	fields := strings.Fields(line)
 	cmd = fields[0]
@@ -117,9 +117,7 @@ func askWorld(scanner *bufio.Scanner) (err error) {
 			return nil
 
 		case "help":
-			if err := replHelp(); err != nil {
-				record.ErrorNoExit(err)
-			}
+			fmt.Println(askWorldHelpInfo)
 
 		case "exit":
 			exit()
@@ -145,5 +143,10 @@ func selectWorld() error {
 
 func exit() error {
 	os.Exit(0)
+	return nil
+}
+
+func selectedWorld() error {
+	record.Info("selected:", subCmdArgs[0])
 	return nil
 }
