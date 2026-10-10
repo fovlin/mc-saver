@@ -1,10 +1,10 @@
 package main
 
 import (
+	"archive/zip"
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -52,6 +52,12 @@ var (
 	}
 )
 
+type Writer struct {
+	ZipWriter   *zip.Writer
+	TempFile    *os.File
+	ArchivePath string
+}
+
 func usageError(argsLine string, replArgsLine string) error {
 	var usage string
 	switch true {
@@ -64,36 +70,21 @@ func usageError(argsLine string, replArgsLine string) error {
 	return record.FmtError("syntax error, usage:", usage)
 }
 
-func initOutputDir(inputPath string) (string, error) {
-	absPath, err := filepath.Abs(inputPath)
-	if err != nil {
-		return "", fmt.Errorf("load absolute path: %w", err)
-	}
-
-	outputPathStat, err := os.Stat(absPath)
-	
-	if outputPathStat.IsDir() {
-		return absPath, nil
-	}
-
-	return path.Dir(absPath), nil
-}
-
 func addSubfixBeforeExt(outputPath string) (string, error) {
 	resultPath := outputPath
 
-	for number := 0; number >= 0; number++ {
+	for number := 1; number > 0; number++ {
 		_, err := os.Stat(resultPath)
 		if os.IsNotExist(err) {
-			return filepath.Join(resultPath), nil
+			return resultPath, nil
 		}
 
 		resultPath = outputPath
 
 		dir := path.Dir(resultPath)
-		name := path.Base(resultPath)
-		ext := path.Ext(name)
-		pureName, _ := strings.CutSuffix(name, ext)
+		basePath := path.Base(resultPath)
+		ext := path.Ext(basePath)
+		pureName, _ := strings.CutSuffix(basePath, ext)
 		pureName += fmt.Sprint("-", number)
 
 		resultPath = path.Join(dir, fmt.Sprint(pureName, ext))

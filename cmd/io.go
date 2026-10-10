@@ -12,27 +12,26 @@ import (
 	"acovia.net/record"
 )
 
-func initZipWriter(outputPath string) (*zip.Writer, func(error) error, error) {
-	archiveDirPath, err := initOutputDir(outputPath)
+func initZipWriter(archiveOutputPath string) (Writer, error) {
+	tempFile, err := os.CreateTemp(path.Dir(archiveOutputPath), "archive")
 	if err != nil {
-		return nil, nil, fmt.Errorf("format output path: %v", err)
+		return Writer{}, fmt.Errorf("create temp archive: %v", err)
 	}
 
-	file, err := os.CreateTemp(path.Dir(archiveDirPath), "archive")
+	err = tempFile.Chmod(0644)
 	if err != nil {
-		return nil, nil, fmt.Errorf("create temp archive: %v", err)
+		return Writer{}, record.FmtError("init archive:", err)
 	}
 
-	err = file.Chmod(0644)
-	if err != nil {
-		return nil, nil, record.FmtError("init archive:", err)
+	zipWriter := zip.NewWriter(tempFile)
+
+	writer := Writer{
+		ZipWriter:   zipWriter,
+		TempFile:    tempFile,
+		ArchivePath: archiveOutputPath,
 	}
 
-
-
-	zipWriter := zip.NewWriter(file)
-
-	return zipWriter, closeFunc(zipWriter, file, path.Base(outputPath)), nil
+	return writer, nil
 }
 
 func writeFileToZip(root *os.Root, fileName string, zipWriter *zip.Writer) error {
@@ -99,60 +98,77 @@ func commitConfig(configFilePath string) error {
 	return nil
 }
 
-func initOutputPath(archivePath string) (string, error) {
-	archiveStat, err := os.Stat(archivePath)
+func initOutputPath(outputPath string, archiveName string) (string, error) {
+	archiveStat, err := os.Stat(outputPath)
 	switch true {
 
-	case archiveStat.IsDir():
-		archiveName := fmt.Sprint(path.Base(archivePath), "-", time.Now().Format(time.DateOnly))
-		outputPath, err := addSubfixBeforeExt(path.Join(archivePath, archiveName))
+	case err == nil && archiveStat.IsDir():
+		archiveName := fmt.Sprint(archiveName, "-", time.Now().Format(time.DateOnly), ".zip")
+		newOutputPath, err := addSubfixBeforeExt(path.Join(outputPath, archiveName))
+		if err != nil {
+			return "", err
+		}
+		return newOutputPath, nil
+
+	case err == nil && !archiveStat.IsDir() || err != nil && os.IsNotExist(err):
+		err = os.MkdirAll(path.Dir(outputPath), 0755)
+		if err != nil {
+			return "", record.FmtError("create directory:", err)
+		}
+		outputPath, err := addSubfixBeforeExt(outputPath)
 		if err != nil {
 			return "", err
 		}
 		return outputPath, nil
-
-	case err != nil:
-		return "", err
 
 	default:
-		outputPath, err := addSubfixBeforeExt(archivePath)
-		if err != nil {
-			return "", err
-		}
-		return outputPath, nil
+		return "", record.FmtError("init output path:", err)
 	}
 }
 
-func closeFunc(zipWriter *zip.Writer, file *os.File, outputPath string) func(error) error {
-	close := func(inputErr error) error {
-		archivePath := file.Name()
-		err := zipWriter.Close()
-		if err != nil {
-			return err
-		}
-		err = file.Close()
-		if err != nil {
-			return err
-		}
-
-		if inputErr != nil {
-			err := os.Remove(archivePath)
-			if err != nil {
-				return record.FmtError("remove damage archive:", err)
-			}
-		}
-
-		outputPath, err = initOutputPath(outputPath)
-		if err != nil {
-			return record.FmtError("init output path:", err)
-		}
-
-		err = os.Rename(archivePath, outputPath)
-		if err != nil {
-			return err
-		}
-
-		return nil
+func (writer Writer) Package() error {
+	archiveTempPath := writer.TempFile.Name()
+	err := writer.Close()
+	if err != nil {
+		return err
 	}
-	return close
+
+	writer.ArchivePath, err = initOutputPath(writer.ArchivePath, path.Base(writer.ArchivePath))
+	if err != nil {
+		return record.FmtError("init output path:", err)
+	}
+
+	err = os.Rename(archiveTempPath, writer.ArchivePath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (writer Writer) Close() error {
+	err := writer.ZipWriter.Close()
+	if err != nil {
+		return err
+	}
+
+	err = writer.TempFile.Close()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (writer Writer) Clear() error {
+	err := writer.Close()
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(writer.TempFile.Name())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

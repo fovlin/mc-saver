@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"os"
 	"path"
+	"path/filepath"
 
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
@@ -17,13 +18,19 @@ func run() error {
 	var outputPath = fmtPath(defaultOutputPath)
 
 	if len(subCmdArgs) > 1 {
-		outputPath = subCmdArgs[1]
+		outputPath = fmtPath(subCmdArgs[1])
 	}
 
-	worldDirPath := fmtPath(subCmdArgs[0])
+	worldDirPath, err := filepath.Abs(subCmdArgs[0])
+	if err != nil {
+		return record.FmtError("load world absolute path:", err)
+	}
+
+	worldDirPath = fmtPath(worldDirPath)
 	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
-		return err
+	err = initWorldConfig(worldDirPath, configFilePath)
+	if err != nil {
+		return record.FmtError("init world config:", err)
 	}
 
 	root, err := os.OpenRoot(worldDirPath)
@@ -32,7 +39,12 @@ func run() error {
 	}
 	defer root.Close()
 
-	zipWriter, close, err := initZipWriter(outputPath)
+	outputPath, err = initOutputPath(outputPath, path.Base(worldDirPath))
+	if err != nil {
+		return record.FmtError("init output path:", err)
+	}
+
+	writer, err := initZipWriter(outputPath)
 	if err != nil {
 		return record.FmtError("init zip writer:", err)
 	}
@@ -43,23 +55,22 @@ func run() error {
 
 	var saveErr error
 	if useLegacyMode {
-		saveErr = save.SaveOldAllFile(root, config, zipWriter, writeFile)
+		saveErr = save.SaveOldAllFile(root, config, writer.ZipWriter, writeFile)
 	} else {
-		saveErr = save.SaveAllFile(root, config, zipWriter, writeFile)
+		saveErr = save.SaveAllFile(root, config, writer.ZipWriter, writeFile)
 	}
 
 	if saveErr != nil {
-		err = close(saveErr)
+		err = writer.Clear()
 		if err != nil {
-			return err
+			return record.FmtError("clear damage file:", err)
 		}
-
-		return saveErr
+		return record.FmtError("backup:", saveErr)
 	}
 
-	err = close(nil)
+	err = writer.Package()
 	if err != nil {
-		return record.FmtError("close file writer:", err)
+		return record.FmtError("package archive file:", err)
 	}
 
 	record.Info("zip writer closed")

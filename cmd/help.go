@@ -138,3 +138,9 @@ var replHelpInfo = `repl commands, the selected world is implicit:
 	about                       print the information and copyright
 	exit                        leave repl mode
 `
+var askWorldHelpInfo = `repl selecter commands:
+
+	select <world>              switch to another world
+	help                        print this help text
+	exit                        leave repl mode
+`

@@ -117,9 +117,7 @@ func askWorld(scanner *bufio.Scanner) (err error) {
 			return nil
 
 		case "help":
-			if err := replHelp(); err != nil {
-				record.ErrorNoExit(err)
-			}
+			fmt.Println(askWorldHelpInfo)
 
 		case "exit":
 			exit()
