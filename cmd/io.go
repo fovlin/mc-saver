@@ -12,20 +12,24 @@ import (
 	"acovia.net/record"
 )
 
-func initWriter(archiveOutputPath string) (Writer, error) {
+func initWriter(archiveOutputPath string) (*Writer, error) {
 	tempFile, err := os.CreateTemp(path.Dir(archiveOutputPath), "archive")
 	if err != nil {
-		return Writer{}, fmt.Errorf("create temp archive: %v", err)
+		return &Writer{}, fmt.Errorf("create temp archive: %v", err)
 	}
 
 	err = tempFile.Chmod(0644)
 	if err != nil {
-		return Writer{}, record.FmtError("init archive:", err)
+		closeErr := tempFile.Close()
+		if closeErr != nil {
+			return &Writer{}, record.FmtError("init archive:", err, ">", "close writer", closeErr)
+		}
+		return &Writer{}, record.FmtError("init archive:", err)
 	}
 
 	zipWriter := zip.NewWriter(tempFile)
 
-	writer := Writer{
+	writer := &Writer{
 		ZipWriter:   zipWriter,
 		TempFile:    tempFile,
 		ArchivePath: archiveOutputPath,
@@ -119,11 +123,11 @@ func initOutputPath(outputPath string, archiveName string) (string, error) {
 	}
 }
 
-func (writer Writer) Package() error {
+func (writer *Writer) Package() error {
 	archiveTempPath := writer.TempFile.Name()
 	err := writer.Close()
 	if err != nil {
-		return err
+		return record.FmtError("close writer:", err)
 	}
 
 	writer.ArchivePath, err = addSubfixBeforeExt(writer.ArchivePath)
@@ -133,13 +137,13 @@ func (writer Writer) Package() error {
 
 	err = os.Rename(archiveTempPath, writer.ArchivePath)
 	if err != nil {
-		return err
+		return record.FmtError("rename temp file:", err)
 	}
 
 	return nil
 }
 
-func (writer Writer) Close() error {
+func (writer *Writer) Close() error {
 	err := writer.ZipWriter.Close()
 	if err != nil {
 		return err
@@ -152,10 +156,10 @@ func (writer Writer) Close() error {
 	return nil
 }
 
-func (writer Writer) Clear() error {
+func (writer *Writer) Clear() error {
 	err := writer.Close()
 	if err != nil {
-		return err
+		return record.FmtError("close writer:", err)
 	}
 
 	err = os.Remove(writer.TempFile.Name())

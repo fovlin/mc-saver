@@ -53,28 +53,26 @@ func run() error {
 		return writeFileToZip(root, fileName, zipWriter)
 	}
 
-	var saveErr error
 	if useLegacyMode {
-		saveErr = save.SaveOldAllFile(root, config, writer.ZipWriter, writeFile)
+		err = save.SaveOldAllFile(root, config, writer.ZipWriter, writeFile)
 	} else {
-		saveErr = save.SaveAllFile(root, config, writer.ZipWriter, writeFile)
+		err = save.SaveAllFile(root, config, writer.ZipWriter, writeFile)
 	}
 
-	if saveErr != nil {
-		err = writer.Clear()
-		if err != nil {
-			return record.FmtError("clear damage file:", err)
+	if err != nil {
+		clearErr := writer.Clear()
+		if clearErr != nil {
+			return record.FmtError(err, ">", "clear damage file:", clearErr)
 		}
-		return record.FmtError("backup:", saveErr)
+		return record.FmtError("backup:", err)
 	}
 
 	err = writer.Package()
 	if err != nil {
-		return record.FmtError("package archive file:", err)
+		return record.FmtError("package archive:", err)
 	}
 
-	record.Info("zip writer closed")
-	record.Info("backup completed successfully!")
+	record.Info("backup completed successfully")
 
 	return nil
 }

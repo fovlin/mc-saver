@@ -35,7 +35,7 @@ func gencfg() error {
 
 	switch true {
 	case os.IsNotExist(err):
-		config = save.NullConfig
+		config = save.NewNullConfig()
 
 	case !os.IsNotExist(err) && err == nil:
 		err = initConfig(configFilePath)

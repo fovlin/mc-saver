@@ -35,7 +35,7 @@ func initConfig(configFilePath string) error {
 
 	switch true {
 	case os.IsNotExist(err):
-		config = save.NullConfig
+		config = save.NewNullConfig()
 
 	case err != nil:
 		return record.FmtError("stat config:", err)

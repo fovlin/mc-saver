@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"acovia.net/minecraft/save"
 	"acovia.net/record"
 )
 
@@ -60,7 +61,9 @@ func replLoop(scanner *bufio.Scanner) error {
 			record.ErrorNoExit(err)
 		}
 
+		// reset var
 		clear(subCmdArgs[1:])
+		config = save.NewNullConfig()
 	}
 
 	return scanner.Err()
@@ -138,6 +141,7 @@ func selectWorld() error {
 	}
 
 	subCmdArgs = []string{subCmdArgs[1]}
+	record.Info("selected:", subCmdArgs[0])
 	return nil
 }
 

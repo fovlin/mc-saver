@@ -38,7 +38,7 @@ func Info(value ...any) {
 
 func Warn(value ...any) {
 	prefix := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Yellow, "WARN")}
-	fmt.Fprint(os.Stdout, wrapPrefix(strings.Join(prefix, " ")))
+	fmt.Fprint(os.Stderr, wrapPrefix(strings.Join(prefix, " ")))
 	fmt.Println(value...)
 }
 

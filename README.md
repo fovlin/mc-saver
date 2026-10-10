@@ -17,12 +17,12 @@ Download a prebuilt binary from the [Releases](https://github.com/fovlin/mc-save
 ## Usage
 
 ```
-mc-saver [-l] [-color] <command> <world> [args...]
+mc-saver [-l] <command> <world> [args...]
 ```
 
 Every command takes the world directory as its first argument; the rule file is read from `<world>/saver.json`. Flags, if any, go before the command.
 
-When the first argument looks like a path — it starts with `./` or `/` — it is taken as the world and repl mode starts straight away, so `mc-saver /srv/minecraft/world` means the same as `mc-saver repl /srv/minecraft/world`.
+When the first argument looks like a path — it starts with `./` or `/`, after `\` is normalized to `/` — it is taken as the world and repl mode starts straight away, so `mc-saver /srv/minecraft/world` means the same as `mc-saver repl /srv/minecraft/world`.
 
 ```bash
 mc-saver gencfg /srv/minecraft/world           # write the default rule file
@@ -31,26 +31,26 @@ mc-saver list-dms /srv/minecraft/world         # inspect the rules
 mc-saver -l run /srv/minecraft/old-world out.zip   # legacy worlds (before 1.21.11)
 ```
 
-A missing rule file is created empty on first use, so every command works out of the box. `gencfg <world>` writes the full default rule file instead — three dimensions (`overworld`, `the_nether`, `the_end`), each with the `-1,-1` to `0,0` range, plus four root entries (`level.dat`, `data`, `datapacks`, `players`).
+A missing rule file is treated as an empty one, so every command works out of the box; the file appears on disk only once a config command or `gencfg` writes it. `gencfg <world>` writes the full default rule file — three dimensions (`overworld`, `the_nether`, `the_end`), each with the `-1,-1` to `0,0` range, plus four root entries (`level.dat`, `data`, `datapacks`, `players`).
 
-### New Feature （The `repl` mode）
-Now we have updated the repl mode for easy using. In this mode, users only need to enter the world path once to continuously input commands, which greatly reduces the annoyance of command errors caused by frequent CLI command input. below is how to use `repl` to execute your commands : 
+### The `repl` mode
 
-- The format for `repl`mode : 
-```zsh 
+In repl mode the world is chosen once and every following command uses it, so the world path is typed once instead of on every command line.
+
+```bash
 mc-saver repl </path/to/world>
 ```
-- Example :
 
-```bash 
-# Enter Repl mode 
-root@mc-saver ~$ ./mc-saver repl /tmp/testworld 
+```bash
+# Enter Repl mode
+root@mc-saver ~$ ./mc-saver repl /tmp/testworld
 
 [2026-10-08 12:51:28 INFO]: selected: /tmp/testworld
 [2026-10-08 12:51:28 INFO]: type 'help' for commands, 'exit' to quit repl mode
 mc-saver >
 ```
-In above example, you can type any [commands](#commands) when the `mc-saver >` appear. `mc-saver` without any argument enters repl mode too, and then asks for a world (`select <world>`).
+
+Type any [command](#commands) at the `mc-saver >` prompt. `mc-saver` without arguments enters repl mode too, and asks for a world first (`select <world>`). `select <world>` switches worlds and prints `selected: <world>`; `world` prints the current selection without changing it.
 
 If you wanna more information about how to use `repl` please check the `help` menu by below command :
 
@@ -79,6 +79,7 @@ repl commands, the selected world is implicit:
 	del-file <index>...
 	mod-file <index> <name>
 
+	world                       print the selected world
 	select <world>              switch to another world
 	help                        print this help text
 	about                       print the information and copyright
@@ -96,16 +97,17 @@ Backup and utility:
 
 | Command | Description |
 | --- | --- |
-| `run <world> [output]` | Back up a world. Output defaults to `.`, where a dated zip is created. |
+| `run <world> [output]` | Back up a world. Output defaults to `.`; an existing directory receives `<world>-YYYY-MM-DD.zip`, and any other path is used as the file name. |
 | `gencfg <world>` | Write the default rule file to `<world>/saver.json`. An empty rule file is filled with the defaults; one that already has rules is left alone and reported as an error. |
 | `repl [world]` | Enter interactive repl mode, for `[world]` if it is given. Running `mc-saver` without arguments does the same. |
 | `help` | Print the built-in usage text. |
 | `about` | Print the name, repository and license. |
 
-The repl adds three commands of its own:
+The repl adds four commands of its own:
 
 | Command | Description |
 | --- | --- |
+| `world` | Print the selected world. |
 | `select <world>` | Switch to another world; the current one is kept if the new one cannot be loaded. |
 | `help` | Print the shorter repl usage text. |
 | `exit` | Leave repl mode. |
@@ -142,7 +144,8 @@ Indices are 0-based, as printed by the `list*` commands, and refer to the list a
 | Flag | Description |
 | --- | --- |
 | `-l` | Back up using the legacy single-folder layout (`DIM-1`/`DIM1`), for worlds from before 1.21.11. Also makes `gencfg` write a legacy-friendly `file` list. |
-| `-color` | Enable colored output. |
+
+`-l` is a switch and takes no value. Flags go before the command, so `mc-saver -l run <world>` works and `mc-saver run -l <world>` does not.
 
 ## Configuration
 
@@ -210,8 +213,12 @@ Files or folders at the world root. Files are added as-is; folders are walked re
 
 ## Notes
 
-- A missing `<world>/saver.json` is created **empty** — no dimension and no file rules. That keeps the list commands usable, and `gencfg <world>` later fills that empty file with the defaults (it refuses to touch a file that already has rules). A backup of an empty rule file produces an archive with nothing in it, and reports success, so watch the archive size.
+- A missing `<world>/saver.json` counts as an **empty** rule file — no dimension and no file rules. That keeps the `list*` commands usable, and `gencfg <world>` later writes the defaults (it refuses to touch a file that already has rules). The file itself is written only when a config command or `gencfg` runs, so a world can be inspected without leaving anything behind. A backup with no rules produces an archive with nothing in it and still reports success, so watch the archive size.
 - Everything named in the rule file must exist in the world: a configured dimension without its `dimensions/<namespace>/<id>` directory, or a `file` entry that is missing, aborts the whole backup instead of being skipped. That is deliberate — otherwise a typo or a stale rule would silently produce an incomplete archive. Remove what you don't have with `del-dms` / `del-file`.
 - Missing *region* files are a different matter: a region that was never generated — or a whole missing `region` directory inside an existing dimension — is skipped with a warning, because that is world content rather than something the rule file declares.
 - A region listed more than once — by overlapping `range` rules, or by a `range` and a `simple` — is added to the archive once per occurrence.
-- Legacy worlds: `gencfg -l <world>` writes a legacy-friendly `file` list (`playerdata` instead of `players`, plus `advancements`).
+- Legacy worlds: `gencfg -l <world>` writes a legacy-friendly `file` list (`playerdata` instead of `players`, plus `advancements`). That list also carries `data`, which in `-l` mode is the overworld's own data folder, so its files are stored twice; drop the `data` entry with `del-file` if that matters.
+- The archive keeps the world directory name as its top-level folder: backing up `/srv/minecraft/world` stores `world/level.dat`, `world/dimensions/...` and so on, so extracting it under the server directory puts the world back in place.
+- Output naming: an existing directory receives `<world>-YYYY-MM-DD.zip`; if that name is taken, `-1`, `-2`, … is appended before the last extension. A path that does not exist is used as the archive file name as-is, and its parent directories are created.
+- Progress lines (`INFO`) go to stdout, while `WARN` and `ERROR` go to stderr, so `mc-saver ... 2>/dev/null` keeps the progress and hides the diagnostics.
+- Symbolic links are **not supported**. The walk does not follow them, and a link that points at a directory or outside the world aborts the whole backup, as does any other entry the rule file cannot read. A link to a plain file inside the world is stored under the link's name with the target's content. Replace links with real directories, or list the entries you need as `file` rules instead of the folder that contains the link.

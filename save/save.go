@@ -40,10 +40,6 @@ type Coordinate struct {
 }
 
 var (
-	NullConfig = Config{
-		Dimension: map[string]DimensionConfig{},
-	}
-
 	rootFile = []string{
 		"region",
 		"entities",
@@ -109,7 +105,7 @@ func SaveDimensionFile(root *os.Root, config Config, zipWriter *zip.Writer, save
 					regionFileName := FormatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
 					err := saveFile(regionFileName, zipWriter)
 					if err != nil {
-						return err
+						return fmt.Errorf("save file: %w", err)
 					}
 					return nil
 				})
@@ -191,17 +187,17 @@ func LoadConfig(configFilePath string) (Config, error) {
 
 	jsonData, err := os.ReadFile(configFilePath)
 	if err != nil {
-		return NullConfig, fmt.Errorf("open config file: %v", err)
+		return NewNullConfig(), fmt.Errorf("open config file: %v", err)
 	}
 
 	var config Config
 	err = json.Unmarshal(jsonData, &config)
 	if err != nil {
-		return NullConfig, fmt.Errorf("decode json data: %v", err)
+		return NewNullConfig(), fmt.Errorf("decode json data: %v", err)
 	}
 
 	if config.Dimension == nil {
-		config.Dimension = NullConfig.Dimension
+		config.Dimension = NewNullConfig().Dimension
 	}
 
 	return config, nil
@@ -228,7 +224,9 @@ func saveDirInRoot(zipWriter *zip.Writer, root *os.Root, file string, saveFile s
 		return err
 	}
 
-	walkErr := fs.WalkDir(subDirRoot.FS(), ".", func(subFilePath string, d fs.DirEntry, err error) error {
+	defer subDirRoot.Close()
+
+	err = fs.WalkDir(subDirRoot.FS(), ".", func(subFilePath string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("walk directory: %w", err)
 		}
@@ -238,21 +236,20 @@ func saveDirInRoot(zipWriter *zip.Writer, root *os.Root, file string, saveFile s
 		if !d.IsDir() {
 			err := saveFile(fullFilePath, zipWriter)
 			if err != nil {
-				return err
+				return fmt.Errorf("save file: %w", err)
 			}
 		}
 
 		return nil
 	})
 
-	err = subDirRoot.Close()
 	if err != nil {
-		return err
-	}
-
-	if walkErr != nil {
-		return fmt.Errorf("open directory: %w", walkErr)
+		return fmt.Errorf("open directory: %w", err)
 	}
 
 	return nil
+}
+
+func NewNullConfig() Config {
+	return Config{Dimension: map[string]DimensionConfig{}}
 }
