@@ -28,13 +28,11 @@ func printRangeRules(dimensions []string) error {
 			return record.FmtError(id+":", "dimension not found")
 		}
 
-		if len(rule.Range) == 0 {
-			continue
-		}
-
-		fmt.Printf("range config for %v:\n", id)
-		for i, v := range rule.Range {
-			fmt.Printf("	- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
+		if len(rule.Range) != 0 {
+			fmt.Printf("range config for %v:\n", id)
+			for i, v := range rule.Range {
+				fmt.Printf("	- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
+			}
 		}
 	}
 
