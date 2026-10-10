@@ -16,10 +16,6 @@ func list() error {
 		return err
 	}
 
-	if len(config.Dimension) == 0 {
-		fmt.Println("no dimension config at all")
-	}
-
 	for id, rule := range config.Dimension {
 		if len(rule.Range) != 0 {
 			fmt.Printf("range config for %v:\n", id)
