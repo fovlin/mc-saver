@@ -44,7 +44,6 @@ mc-saver repl </path/to/world>
 ```bash
 # Enter Repl mode
 root@mc-saver ~$ ./mc-saver repl /tmp/testworld
-
 [2026-10-08 12:51:28 INFO]: selected: /tmp/testworld
 [2026-10-08 12:51:28 INFO]: type 'help' for commands, 'exit' to quit repl mode
 mc-saver >

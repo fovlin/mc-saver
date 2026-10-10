@@ -17,8 +17,11 @@ func listDms() error {
 		return err
 	}
 
-	for id := range config.Dimension {
-		fmt.Printf("- %v\n", id)
+	if len(config.Dimension) != 0 {
+		fmt.Printf("dimension config:\n")
+		for id := range config.Dimension {
+			fmt.Printf("	- %v\n", id)
+		}
 	}
 
 	return nil

@@ -30,13 +30,12 @@ func printSimpleRules(dimensions []string) error {
 		}
 
 		if len(rule.Simple) == 0 {
-			fmt.Printf("no simple config for %v\n", id)
 			continue
 		}
 
 		fmt.Printf("simple config for %v:\n", id)
 		for i, v := range rule.Simple {
-			fmt.Printf("- %v: (%v, %v)\n", i, v.X, v.Y)
+			fmt.Printf("	- %v: (%v, %v)\n", i, v.X, v.Y)
 		}
 	}
 

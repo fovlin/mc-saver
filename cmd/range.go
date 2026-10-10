@@ -29,13 +29,12 @@ func printRangeRules(dimensions []string) error {
 		}
 
 		if len(rule.Range) == 0 {
-			fmt.Printf("no range config for %v\n", id)
 			continue
 		}
 
 		fmt.Printf("range config for %v:\n", id)
 		for i, v := range rule.Range {
-			fmt.Printf("- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
+			fmt.Printf("	- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
 		}
 	}
 

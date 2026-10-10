@@ -61,7 +61,7 @@ func initProgram() {
 		args = []string{"repl"}
 	}
 
-	if isPath(fmtPath(args[0])) {
+	if isPath(args[0]) {
 		args = []string{"repl", args[0]}
 	}
 

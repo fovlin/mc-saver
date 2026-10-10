@@ -141,5 +141,6 @@ func fmtPath(input string) (output string) {
 }
 
 func isPath(s string) bool {
+	s = strings.ReplaceAll(s, "\\", "/")
 	return strings.HasPrefix(s, "./") || strings.HasPrefix(s, "/")
 }

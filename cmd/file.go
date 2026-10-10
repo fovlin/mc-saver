@@ -25,12 +25,11 @@ func listFile() error {
 
 // printFileRules prints the file rules of the loaded config.
 func printFileRules() {
-	if len(config.File) == 0 {
-		fmt.Println("no file config")
-	}
-
-	for i, v := range config.File {
-		fmt.Printf("- %v: %q\n", i, v)
+	if len(config.File) != 0 {
+		fmt.Printf("file config:\n")
+		for i, v := range config.File {
+			fmt.Printf("	- %v: %q\n", i, v)
+		}
 	}
 }
 
