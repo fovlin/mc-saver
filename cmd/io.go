@@ -12,7 +12,7 @@ import (
 	"acovia.net/record"
 )
 
-func initZipWriter(archiveOutputPath string) (Writer, error) {
+func initWriter(archiveOutputPath string) (Writer, error) {
 	tempFile, err := os.CreateTemp(path.Dir(archiveOutputPath), "archive")
 	if err != nil {
 		return Writer{}, fmt.Errorf("create temp archive: %v", err)
@@ -104,20 +104,13 @@ func initOutputPath(outputPath string, archiveName string) (string, error) {
 
 	case err == nil && archiveStat.IsDir():
 		archiveName := fmt.Sprint(archiveName, "-", time.Now().Format(time.DateOnly), ".zip")
-		newOutputPath, err := addSubfixBeforeExt(path.Join(outputPath, archiveName))
-		if err != nil {
-			return "", err
-		}
+		newOutputPath := path.Join(outputPath, archiveName)
 		return newOutputPath, nil
 
 	case err == nil && !archiveStat.IsDir() || err != nil && os.IsNotExist(err):
 		err = os.MkdirAll(path.Dir(outputPath), 0755)
 		if err != nil {
 			return "", record.FmtError("create directory:", err)
-		}
-		outputPath, err := addSubfixBeforeExt(outputPath)
-		if err != nil {
-			return "", err
 		}
 		return outputPath, nil
 
@@ -133,9 +126,9 @@ func (writer Writer) Package() error {
 		return err
 	}
 
-	writer.ArchivePath, err = initOutputPath(writer.ArchivePath, path.Base(writer.ArchivePath))
+	writer.ArchivePath, err = addSubfixBeforeExt(writer.ArchivePath)
 	if err != nil {
-		return record.FmtError("init output path:", err)
+		return record.FmtError("add subfix:", err)
 	}
 
 	err = os.Rename(archiveTempPath, writer.ArchivePath)

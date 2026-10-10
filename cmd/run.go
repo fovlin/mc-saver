@@ -44,7 +44,7 @@ func run() error {
 		return record.FmtError("init output path:", err)
 	}
 
-	writer, err := initZipWriter(outputPath)
+	writer, err := initWriter(outputPath)
 	if err != nil {
 		return record.FmtError("init zip writer:", err)
 	}
