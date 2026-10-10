@@ -12,7 +12,7 @@ func replHelp() error {
 	return nil
 }
 
-var helpInfo = `mc-saver [-l] [-color] <command> <world> [args...]
+var helpInfo = `mc-saver [-l] <command> <world> [args...]
 
 every command takes the world directory as its first argument, and the rule
 file is <world>/saver.json. a missing rule file is created empty.
@@ -104,9 +104,6 @@ options:
 
 	-l
 		legacy world mode, for worlds from before 1.21.11.
-
-	-color
-		enable color output.
 `
 
 var replHelpInfo = `repl commands, the selected world is implicit:

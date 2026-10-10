@@ -14,7 +14,7 @@ import (
 
 var (
 	cmd        string
-	config     save.Config = save.NullConfig
+	config     save.Config = save.NewNullConfig()
 	subCmdArgs []string
 
 	useLegacyMode     bool
@@ -75,8 +75,13 @@ func addSubfixBeforeExt(outputPath string) (string, error) {
 
 	for number := 1; number > 0; number++ {
 		_, err := os.Stat(resultPath)
-		if os.IsNotExist(err) {
+
+		switch true {
+		case os.IsNotExist(err):
 			return resultPath, nil
+
+		case err != nil:
+			return "", err
 		}
 
 		resultPath = outputPath

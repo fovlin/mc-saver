@@ -43,7 +43,7 @@ go build ./cmd
 ## Command layer
 
 ```
-mc-saver [-l] [-color] [command] <world> [args...]
+mc-saver [-l] [command] <world> [args...]
 ```
 
 ## program

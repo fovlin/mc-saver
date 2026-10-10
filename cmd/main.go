@@ -54,10 +54,6 @@ func initProgram() {
 		useLegacyMode = true
 		return nil
 	})
-	flag.BoolFunc("color", "enable color output", func(string) error {
-		record.EnableColor = true
-		return nil
-	})
 	flag.Parse()
 
 	args := flag.Args()
@@ -65,7 +61,7 @@ func initProgram() {
 		args = []string{"repl"}
 	}
 
-	if isPath(args[0]) {
+	if isPath(fmtPath(args[0])) {
 		args = []string{"repl", args[0]}
 	}
 
