@@ -60,6 +60,6 @@ func gencfg() error {
 		return record.FmtError(err)
 	}
 
-	record.Info("created config file:", configFilePath)
+	record.Info("created default config file:", configFilePath)
 	return nil
 }
