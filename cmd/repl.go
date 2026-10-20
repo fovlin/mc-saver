@@ -70,7 +70,7 @@ func replLoop(scanner *bufio.Scanner) error {
 }
 
 func replExec(line string) error {
-	fields := strings.Fields(line)
+	fields := parseCmdArgs(line)
 	cmd = fields[0]
 	subCmdArgs = append(subCmdArgs[:1], fields[1:]...)
 
@@ -97,7 +97,7 @@ func askWorld(scanner *bufio.Scanner) (err error) {
 			return record.FmtError("input is empty")
 		}
 
-		fields := strings.Fields(strings.TrimSpace(scanner.Text()))
+		fields := parseCmdArgs(strings.TrimSpace(scanner.Text()))
 		if len(fields) == 0 {
 			continue
 		}

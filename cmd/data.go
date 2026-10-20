@@ -144,3 +144,60 @@ func isPath(s string) bool {
 	s = strings.ReplaceAll(s, "\\", "/")
 	return strings.HasPrefix(s, "./") || strings.HasPrefix(s, "/")
 }
+
+func parseCmdArgs(cmd string) []string {
+	var str string
+	var result []string
+	var escape, sinQuo, douQuo bool
+
+	for _, char := range cmd {
+		switch true {
+		case sinQuo || douQuo:
+			switch true {
+			case escape:
+				str += string(char)
+				escape = !escape
+
+			case char == '\\':
+				escape = true
+
+			case char == '\'':
+				sinQuo = !sinQuo
+
+			case char == '"':
+				douQuo = !douQuo
+
+			default:
+				str += string(char)
+			}
+
+		case escape:
+			escape = false
+			str += string(char)
+
+		case char == '\\':
+			escape = true
+
+		case char == '\'':
+			sinQuo = !sinQuo
+
+		case char == '"':
+			douQuo = !douQuo
+
+		case char == ' ':
+			if len(str) != 0 {
+				result = append(result, str)
+			}
+			str = ""
+
+		default:
+			str += string(char)
+		}
+	}
+
+	if len(str) != 0 {
+		result = append(result, str)
+	}
+
+	return result
+}
