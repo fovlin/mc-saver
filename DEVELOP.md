@@ -57,7 +57,7 @@ This program use `subCmdArgs` slice to store arguments from command line, compar
 
 The program behaves like:
 
-### Program runtime
+### Program action
 
 Program will judge weather first argument is path, by judge weather start with `./` or `/`.
 
