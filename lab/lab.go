@@ -7,8 +7,8 @@ import (
 )
 
 func main() {
-	var op string
-	option.LongStringVar(&op, "test-var", "default")
+	var op bool
+	option.LongBoolVar(&op, "test-var")
 	option.Parse()
 	fmt.Println(option.Args)
 	fmt.Println(op)
