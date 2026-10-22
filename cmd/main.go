@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"acovia.net/opt"
@@ -58,7 +57,7 @@ func initProgram() error {
 	opt.BoolSwitch(&useLegacyMode, "l", "legacy")
 	opt.BoolSwitch(&record.EnableColor, "c", "color")
 	opt.BoolFunc("", "help", func() {
-		fmt.Println(help())
+		help()
 		os.Exit(0)
 	})
 

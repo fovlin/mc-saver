@@ -1,3 +1,3 @@
-module lab
+module opt
 
 go 1.27.2
