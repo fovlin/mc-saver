@@ -55,18 +55,31 @@ func StringVar(v *string, shortName string, longName string, defaultValue string
 
 func ShortStringVar(v *string, name string, defaultValue string) {
 	if len(name) != 1 {
-		panic("short name length must be 1")
+		panic("the length of the short parameter name must be equal to 1")
+	}
+	name = "-"+name
+	_, ok := Options[name]
+	if ok {
+		panic("duplicate registration parameter: "+name)
 	}
 	*v = defaultValue
-	Options["-"+name] = StringFlag{
+	Options[name] = StringFlag{
 		NextOption: true,
 		Value:      v,
 	}
 }
 
 func LongStringVar(v *string, name string, defaultValue string) {
+	if len(name) == 0 {
+		panic("the length of the long parameter name must be greater than 0")
+	}
+	name = "--"+name
+	_, ok := Options[name]
+	if ok {
+		panic("duplicate registration parameter: "+name)
+	}
 	*v = defaultValue
-	Options["--"+name] = StringFlag{
+	Options[name] = StringFlag{
 		NextOption: true,
 		Value:      v,
 	}
@@ -83,15 +96,28 @@ func BoolSwitch(v *bool, shortName string, longName string) {
 
 func ShortBoolSwitch(v *bool, name string) {
 	if len(name) != 1 {
-		panic("short name length must be 1")
+		panic("the length of the short parameter name must be equal to 1")
 	}
-	Options["-"+name] = BoolFlag{
+	name = "-"+name
+	_, ok := Options[name]
+	if ok {
+		panic("duplicate registration parameter: "+name)
+	}
+	Options[name] = BoolFlag{
 		Value: v,
 	}
 }
 
 func LongBoolSwitch(v *bool, name string) {
-	Options["--"+name] = BoolFlag{
+	if len(name) == 0 {
+		panic("the length of the long parameter name must be greater than 0")
+	}
+	name = "--"+name
+	_, ok := Options[name]
+	if ok {
+		panic("duplicate registration parameter: "+name)
+	}
+	Options[name] = BoolFlag{
 		Value: v,
 	}
 }
@@ -110,6 +136,14 @@ func BoolFunc(shortName string, longName string, function func()) {
 			function()
 		}
 	})
+}
+
+func ShortBoolFunc(shortName string, function func()) {
+	BoolFunc(shortName, "", function)
+}
+
+func LongBoolFunc(longName string, function func()) {
+	BoolFunc("", longName, function)
 }
 
 func Parse() error {
@@ -191,7 +225,7 @@ func initArgs() error {
 			for n, subArg := range arg {
 				value, ok := Options["-"+string(subArg)]
 				if !ok {
-					return fmt.Errorf("unknown option: %v", "-"+arg)
+					return fmt.Errorf("unknown option: %v", "-"+string(subArg))
 				}
 				if n == len(arg)-1 && value.NextIsOption() {
 					nextIsOption = true
