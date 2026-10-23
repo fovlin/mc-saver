@@ -12,14 +12,7 @@ func replHelp() error {
 	return nil
 }
 
-var helpInfo = `mc-saver [-l] <command> <world> [args...]
-
-every command takes the world directory as its first argument, and the rule
-file is <world>/saver.json. a missing rule file is created empty.
-running without arguments enters repl mode, where the world is selected once
-and every following command uses it. a first argument that looks like a path
-(starts with "./" or "/") is taken as the world and enters repl mode directly,
-as in "mc-saver /srv/minecraft/world".
+var helpInfo = `mc-saver [option] <command> <world> [args...]
 
 backup command:
 
@@ -102,8 +95,12 @@ config command:
 
 options:
 
-	-l
+	-l --legacy:
 		legacy world mode, for worlds from before 1.21.11.
+
+	--color:
+		enable color output.
+
 `
 
 var replHelpInfo = `repl commands, the selected world is implicit:
@@ -134,10 +131,12 @@ var replHelpInfo = `repl commands, the selected world is implicit:
 	help                        print this help text
 	about                       print the information and copyright
 	exit                        leave repl mode
+
 `
 var askWorldHelpInfo = `repl selecter commands:
 
 	select <world>              switch to another world
 	help                        print this help text
 	exit                        leave repl mode
+
 `

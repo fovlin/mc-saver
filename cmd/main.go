@@ -1,8 +1,9 @@
 package main
 
 import (
-	"flag"
+	"os"
 
+	"acovia.net/opt"
 	"acovia.net/record"
 )
 
@@ -37,7 +38,10 @@ func init() {
 }
 
 func main() {
-	initProgram()
+	err := initProgram()
+	if err != nil {
+		record.Error(err)
+	}
 
 	function, ok := cmdMap[cmd]
 	if !ok {
@@ -49,14 +53,20 @@ func main() {
 	}
 }
 
-func initProgram() {
-	flag.BoolFunc("l", "legacy world mode", func(string) error {
-		useLegacyMode = true
-		return nil
+func initProgram() error {
+	opt.BoolSwitch(&useLegacyMode, "l", "legacy")
+	opt.BoolSwitch(&record.EnableColor, "c", "color")
+	opt.BoolFunc("", "help", func() {
+		help()
+		os.Exit(0)
 	})
-	flag.Parse()
 
-	args := flag.Args()
+	err := opt.Parse()
+	if err != nil {
+		return err
+	}
+
+	args := opt.Args
 	if len(args) < 1 {
 		args = []string{"repl"}
 	}
@@ -67,4 +77,6 @@ func initProgram() {
 
 	cmd = args[0]
 	subCmdArgs = args[1:]
+
+	return nil
 }
