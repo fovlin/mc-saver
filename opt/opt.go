@@ -158,8 +158,9 @@ func Parse() error {
 		function()
 	}
 
-	clear(allArgs)
+	allArgs = nil
 	funcList = nil
+	Options  = make(map[string]Value)
 	return nil
 }
 
