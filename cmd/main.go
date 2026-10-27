@@ -66,7 +66,7 @@ func initProgram() error {
 		return err
 	}
 
-	args := opt.Args
+	args := opt.Args()
 	if len(args) < 1 {
 		args = []string{"repl"}
 	}
