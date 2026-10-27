@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -49,30 +50,36 @@ func run() error {
 		return record.FmtError("init zip writer:", err)
 	}
 
-	writeFile := func(fileName string, zipWriter *zip.Writer) error {
-		return writeFileToZip(root, fileName, zipWriter)
-	}
-
-	if useLegacyMode {
-		err = save.SaveOldAllFile(root, config, writer.ZipWriter, writeFile)
-	} else {
-		err = save.SaveAllFile(root, config, writer.ZipWriter, writeFile)
-	}
-
-	if err != nil {
-		clearErr := writer.Clear()
-		if clearErr != nil {
-			return record.FmtError(err, ">", "clear damage file:", clearErr)
+	err = func() error {
+		writeFile := func(fileName string, zipWriter *zip.Writer) error {
+			return writeFileToZip(root, fileName, zipWriter)
 		}
-		return record.FmtError("backup:", err)
-	}
 
-	err = writer.Package()
+		if useLegacyMode {
+			err = save.SaveOldAllFile(root, config, writer.ZipWriter, writeFile)
+		} else {
+			err = save.SaveAllFile(root, config, writer.ZipWriter, writeFile)
+		}
+
+		if err != nil {
+			return record.FmtError("backup:", err)
+		}
+
+		err = writer.Package()
+		if err != nil {
+			return record.FmtError("package archive:", err)
+		}
+
+		return nil
+	}()
+
 	if err != nil {
-		return record.FmtError("package archive:", err)
+		if err := writer.Clear(); err != nil {
+			return fmt.Errorf("remove damage file: %w", err)
+		}
+		return err
 	}
 
 	record.Info("backup completed successfully")
-
 	return nil
 }

@@ -56,6 +56,7 @@ func main() {
 func initProgram() error {
 	opt.BoolSwitch(&useLegacyMode, "l", "legacy")
 	opt.BoolSwitch(&record.EnableColor, "c", "color")
+	opt.BoolSwitch(&record.EnableTimestamp, "t", "time")
 	opt.BoolFunc("", "help", func() {
 		help()
 		os.Exit(0)

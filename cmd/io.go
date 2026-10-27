@@ -72,7 +72,7 @@ func writeFileToZip(root *os.Root, fileName string, zipWriter *zip.Writer) error
 			return fmt.Errorf("write file: %v", err)
 		}
 		return nil
-	}, "adding: ", headerName)
+	}, "adding:", headerName)
 	if err != nil {
 		return err
 	}

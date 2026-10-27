@@ -16,7 +16,8 @@ const (
 )
 
 var (
-	EnableColor bool = false
+	EnableColor     bool = false
+	EnableTimestamp bool = false
 )
 
 func wrapColor(color int, value ...any) string {
@@ -26,51 +27,63 @@ func wrapColor(color int, value ...any) string {
 	return fmt.Sprintf("\033[1;%vm", color) + fmt.Sprint(value...) + "\033[1;0m"
 }
 
-func wrapPrefix(value ...any) string {
-	return "[" + fmt.Sprint(value...) + "]: "
+func wrapHander(color int, prefix string) string {
+	var prefixs []string
+	switch true {
+	case !EnableTimestamp:
+		prefixs = []string{
+			wrapColor(color, prefix),
+		}
+	default:
+		prefixs = []string{
+			wrapColor(Blue, time.Now().Format(time.DateTime)),
+			wrapColor(color, prefix),
+		}
+	}
+	return strings.Join(prefixs, " ")
+}
+
+func wrapLog(color int, prefix string, value ...any) string {
+	var content string
+	for index, arg := range value {
+		if index != 0 {
+			content += " "
+		}
+		content += fmt.Sprintf("%v", arg)
+	}
+	return fmt.Sprintf("[%v]: %v", wrapHander(color, prefix), content)
+}
+
+func wrapLogln(color int, prefix string, value ...any) string {
+	return fmt.Sprintf("[%v]: %v", wrapHander(color, prefix), fmt.Sprintln(value...))
 }
 
 func Info(value ...any) {
-	prefix := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Green, "INFO")}
-	fmt.Fprint(os.Stdout, wrapPrefix(strings.Join(prefix, " ")))
-	fmt.Println(value...)
+	fmt.Print(wrapLogln(Green, "INFO", value...))
 }
 
 func Warn(value ...any) {
-	prefix := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Yellow, "WARN")}
-	fmt.Fprint(os.Stderr, wrapPrefix(strings.Join(prefix, " ")))
-	fmt.Println(value...)
+	fmt.Print(wrapLogln(Yellow, "WARN", value...))
 }
 
 func Error(value ...any) {
-	prefix := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Red, "ERROR")}
-	fmt.Fprint(os.Stderr, wrapPrefix(strings.Join(prefix, " ")))
-	fmt.Fprintln(os.Stderr, value...)
+	fmt.Print(wrapLogln(Red, "ERROR", value...))
 	os.Exit(1)
 }
 
 func Debug(value ...any) {
-	prefix := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Blue, "DEBUG")}
-	fmt.Fprint(os.Stdout, wrapPrefix(strings.Join(prefix, " ")))
-	fmt.Fprintln(os.Stdout, value...)
+	fmt.Print(wrapLogln(Blue, "DEBUG", value...))
 }
 
 func ErrorNoExit(value ...any) {
-	prefix := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Red, "ERROR")}
-	fmt.Fprint(os.Stderr, wrapPrefix(strings.Join(prefix, " ")))
-	fmt.Fprintln(os.Stderr, value...)
-}
-
-func InfoNoWrap(value ...any) {
-	prefix := []string{wrapColor(Blue, time.Now().Format(time.DateTime)), wrapColor(Green, "INFO")}
-	fmt.Fprint(os.Stdout, wrapPrefix(strings.Join(prefix, " ")))
-	fmt.Fprint(os.Stdout, value...)
+	fmt.Print(wrapLogln(Red, "ERROR", value...))
 }
 
 func RunningInfo(run func() error, value ...any) error {
-	InfoNoWrap(value...)
-	defer fmt.Fprintf(os.Stdout, "\n")
-	if err := run(); err != nil {
+	fmt.Printf("%s", wrapLog(Green, "INFO", value...))
+	err := run()
+	fmt.Print("\n")
+	if err != nil {
 		return err
 	}
 	return nil
