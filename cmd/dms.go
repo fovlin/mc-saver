@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"acovia.net/record"
 )
 
@@ -15,9 +13,9 @@ func listDms() error {
 	}
 
 	if len(config.Dimension) != 0 {
-		fmt.Printf("dimension config:\n")
+		record.Printf("dimension config:\n")
 		for id := range config.Dimension {
-			fmt.Printf("	- %v\n", id)
+			record.Printf("	- %v\n", id)
 		}
 	}
 

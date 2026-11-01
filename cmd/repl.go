@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -148,7 +147,7 @@ func askWorld(terminal *term.Terminal) (err error) {
 			return nil
 
 		case "help":
-			fmt.Println(askWorldHelpInfo)
+			record.Println(askWorldHelpInfo)
 
 		case "exit":
 			exit()

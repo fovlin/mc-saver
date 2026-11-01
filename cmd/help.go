@@ -1,14 +1,14 @@
 package main
 
-import "fmt"
+import "acovia.net/record"
 
 func help() error {
-	fmt.Print(helpInfo)
+	record.Print(helpInfo)
 	return nil
 }
 
 func replHelp() error {
-	fmt.Print(replHelpInfo)
+	record.Print(replHelpInfo)
 	return nil
 }
 

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
 )
@@ -30,9 +28,9 @@ func printSimpleRules(dimensions []string) error {
 			continue
 		}
 
-		fmt.Printf("simple config for %v:\n", id)
+		record.Printf("simple config for %v:\n", id)
 		for i, v := range rule.Simple {
-			fmt.Printf("	- %v: (%v, %v)\n", i, v.X, v.Y)
+			record.Printf("	- %v: (%v, %v)\n", i, v.X, v.Y)
 		}
 	}
 

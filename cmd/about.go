@@ -1,10 +1,10 @@
 package main
 
-import "fmt"
+import "acovia.net/record"
 
 func about() error {
-	fmt.Println("mc-saver - selective Minecraft world backup tool")
-	fmt.Println("github link: https://github.com/fovlin/mc-saver")
-	fmt.Println("license: GNU General Public License v3")
+	record.Println("mc-saver - selective Minecraft world backup tool")
+	record.Println("github link: https://github.com/fovlin/mc-saver")
+	record.Println("license: GNU General Public License v3")
 	return nil
 }

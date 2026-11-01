@@ -1,8 +1,6 @@
 package main
 
-import (
-	"fmt"
-)
+import "acovia.net/record"
 
 func list() error {
 	usage := "mc-saver list <world>"
@@ -14,16 +12,16 @@ func list() error {
 
 	for id, rule := range config.Dimension {
 		if len(rule.Range) != 0 {
-			fmt.Printf("range config for %v:\n", id)
+			record.Printf("range config for %v:\n", id)
 			for i, v := range rule.Range {
-				fmt.Printf("	- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
+				record.Printf("	- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
 			}
 		}
 
 		if len(rule.Simple) != 0 {
-			fmt.Printf("simple config for %v:\n", id)
+			record.Printf("simple config for %v:\n", id)
 			for i, v := range rule.Simple {
-				fmt.Printf("	- %v: (%v, %v)\n", i, v.X, v.Y)
+				record.Printf("	- %v: (%v, %v)\n", i, v.X, v.Y)
 			}
 		}
 	}

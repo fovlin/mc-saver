@@ -44,7 +44,7 @@ func wrapHander(color int, prefix string) string {
 	return strings.Join(prefixs, " ")
 }
 
-func wrapLog(color int, prefix string, value ...any) string {
+func joinValue(value ...any) string {
 	var content string
 	for index, arg := range value {
 		if index != 0 {
@@ -52,45 +52,85 @@ func wrapLog(color int, prefix string, value ...any) string {
 		}
 		content += fmt.Sprintf("%v", arg)
 	}
-	return fmt.Sprintf("[%v]: %v", wrapHander(color, prefix), content)
+	return content
+}
+
+func lineEnding() string {
+	if Terminal {
+		return "\r\n"
+	}
+	return "\n"
+}
+
+// normalizeEOL rewrites every line break in text to the one the current
+// output mode expects, so multi line output stays aligned with column 0.
+func normalizeEOL(text string) string {
+	if !Terminal {
+		return text
+	}
+
+	var builder strings.Builder
+	for index := 0; index < len(text); index++ {
+		switch text[index] {
+		case '\r':
+			if index+1 < len(text) && text[index+1] == '\n' {
+				continue
+			}
+			builder.WriteByte('\r')
+		case '\n':
+			builder.WriteString("\r\n")
+		default:
+			builder.WriteByte(text[index])
+		}
+	}
+	return builder.String()
+}
+
+func wrapLog(color int, prefix string, value ...any) string {
+	return fmt.Sprintf("[%v]: %v", wrapHander(color, prefix), joinValue(value...))
 }
 
 func wrapLogln(color int, prefix string, value ...any) string {
-	var subfix string
-	if Terminal {
-		subfix = "\r"
-	}
-	return fmt.Sprintf("[%v]: %v%v", wrapHander(color, prefix), fmt.Sprintln(value...), subfix)
+	return fmt.Sprintf("[%v]: %v%v", wrapHander(color, prefix), joinValue(value...), lineEnding())
+}
+
+func Print(value ...any) {
+	fmt.Print(normalizeEOL(joinValue(value...)))
+}
+
+func Println(value ...any) {
+	fmt.Print(normalizeEOL(joinValue(value...)) + lineEnding())
+}
+
+func Printf(format string, value ...any) {
+	Print(fmt.Sprintf(format, value...))
 }
 
 func Info(value ...any) {
-	fmt.Print(wrapLogln(Green, "INFO", value...))
+	Print(wrapLogln(Green, "INFO", value...))
 }
 
 func Warn(value ...any) {
-	fmt.Print(wrapLogln(Yellow, "WARN", value...))
+	Print(wrapLogln(Yellow, "WARN", value...))
 }
 
 func Error(value ...any) {
-	fmt.Print(wrapLogln(Red, "ERROR", value...))
+	Print(wrapLogln(Red, "ERROR", value...))
 	os.Exit(1)
 }
 
 func Debug(value ...any) {
-	fmt.Print(wrapLogln(Blue, "DEBUG", value...))
+	Print(wrapLogln(Blue, "DEBUG", value...))
 }
 
 func ErrorNoExit(value ...any) {
-	fmt.Print(wrapLogln(Red, "ERROR", value...))
+	Print(wrapLogln(Red, "ERROR", value...))
 }
 
 func RunningInfo(run func() error, value ...any) error {
-	fmt.Printf("%s", wrapLog(Green, "INFO", value...))
+	Print(wrapLog(Green, "INFO", value...))
 	err := run()
-	fmt.Print("\n")
-	if Terminal {
-		fmt.Print("\r")
-	}
+	Println()
 	if err != nil {
 		return err
 	}
@@ -98,6 +138,5 @@ func RunningInfo(run func() error, value ...any) error {
 }
 
 func FmtError(v ...any) error {
-	fmtString, _ := strings.CutSuffix(fmt.Sprintln(v...), "\n")
-	return errors.New(fmtString)
+	return errors.New(joinValue(v...))
 }

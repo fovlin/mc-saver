@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
 )
@@ -26,9 +24,9 @@ func printRangeRules(dimensions []string) error {
 		}
 
 		if len(rule.Range) != 0 {
-			fmt.Printf("range config for %v:\n", id)
+			record.Printf("range config for %v:\n", id)
 			for i, v := range rule.Range {
-				fmt.Printf("	- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
+				record.Printf("	- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
 			}
 		}
 	}
