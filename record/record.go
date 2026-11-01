@@ -140,7 +140,7 @@ func ErrorNoExit(value ...any) {
 func RunningInfo(run func() error, value ...any) error {
 	Fprint(os.Stdout, wrapLog(Green, "INFO", value...))
 	err := run()
-	Fprint(os.Stdout, '\n')
+	Fprint(os.Stdout, "\n")
 	if err != nil {
 		return err
 	}
