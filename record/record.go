@@ -28,7 +28,7 @@ func wrapColor(color int, value ...any) string {
 	return fmt.Sprintf("\033[1;%vm", color) + fmt.Sprint(value...) + "\033[1;0m"
 }
 
-func wrapHander(color int, prefix string) string {
+func wrapHeader(color int, prefix string) string {
 	var prefixs []string
 	switch true {
 	case !EnableTimestamp:
@@ -44,93 +44,103 @@ func wrapHander(color int, prefix string) string {
 	return strings.Join(prefixs, " ")
 }
 
-func joinValue(value ...any) string {
-	var content string
-	for index, arg := range value {
-		if index != 0 {
-			content += " "
-		}
-		content += fmt.Sprintf("%v", arg)
-	}
-	return content
-}
-
-func lineEnding() string {
-	if Terminal {
-		return "\r\n"
-	}
-	return "\n"
-}
-
-// normalizeEOL rewrites every line break in text to the one the current
-// output mode expects, so multi line output stays aligned with column 0.
-func normalizeEOL(text string) string {
-	if !Terminal {
-		return text
-	}
-
+func newBuilder(value ...any) *strings.Builder {
 	var builder strings.Builder
-	for index := 0; index < len(text); index++ {
-		switch text[index] {
-		case '\r':
-			if index+1 < len(text) && text[index+1] == '\n' {
+	for index, arg := range value {
+		for _, char := range fmt.Sprint(arg) {
+			builder.WriteRune(char)
+		}
+		if index != len(value)-1 {
+			builder.WriteRune(' ')
+		}
+	}
+	return &builder
+}
+
+func build(value ...any) string {
+	return newBuilder(value...).String()
+}
+
+func buildln(value ...any) string {
+	p := newBuilder(value...)
+	p.WriteRune('\n')
+	return p.String()
+}
+
+func formatString(str string) string {
+	if !Terminal {
+		return str
+	}
+	var builder strings.Builder
+	for index, char := range str {
+		switch true {
+		case char == '\n':
+			builder.WriteRune('\r')
+			builder.WriteRune('\n')
+
+		case char == '\r':
+			if index < len(str)-1 && str[index+1] == '\n' {
 				continue
 			}
-			builder.WriteByte('\r')
-		case '\n':
-			builder.WriteString("\r\n")
+			builder.WriteRune('\r')
+
 		default:
-			builder.WriteByte(text[index])
+			builder.WriteRune(char)
 		}
 	}
+
 	return builder.String()
 }
 
 func wrapLog(color int, prefix string, value ...any) string {
-	return fmt.Sprintf("[%v]: %v", wrapHander(color, prefix), joinValue(value...))
+	return fmt.Sprintf("[%v]: %v", wrapHeader(color, prefix), build(value...))
 }
 
 func wrapLogln(color int, prefix string, value ...any) string {
-	return fmt.Sprintf("[%v]: %v%v", wrapHander(color, prefix), joinValue(value...), lineEnding())
+	return fmt.Sprintf("[%v]: %v", wrapHeader(color, prefix), buildln(value...))
+}
+
+func Fprint(inout *os.File, value ...any) {
+	fmt.Fprint(inout, formatString(build(value...)))
 }
 
 func Print(value ...any) {
-	fmt.Print(normalizeEOL(joinValue(value...)))
+	fmt.Fprint(os.Stdout, formatString(build(value...)))
 }
 
 func Println(value ...any) {
-	fmt.Print(normalizeEOL(joinValue(value...)) + lineEnding())
+	fmt.Fprint(os.Stdout, formatString(buildln(value...)))
 }
 
 func Printf(format string, value ...any) {
-	Print(fmt.Sprintf(format, value...))
+	fmt.Fprint(os.Stdout, formatString(fmt.Sprintf(format, value...)))
 }
 
 func Info(value ...any) {
-	Print(wrapLogln(Green, "INFO", value...))
+	Fprint(os.Stdout, wrapLogln(Green, "INFO", value...))
 }
 
 func Warn(value ...any) {
-	Print(wrapLogln(Yellow, "WARN", value...))
-}
-
-func Error(value ...any) {
-	Print(wrapLogln(Red, "ERROR", value...))
-	os.Exit(1)
+	Fprint(os.Stdout, wrapLogln(Yellow, "WARN", value...))
 }
 
 func Debug(value ...any) {
-	Print(wrapLogln(Blue, "DEBUG", value...))
+	Fprint(os.Stdout, wrapLogln(Blue, "DEBUG", value...))
+}
+
+func Error(value ...any) {
+	Fprint(os.Stderr, wrapLogln(Red, "ERROR", value...))
+	os.Exit(1)
 }
 
 func ErrorNoExit(value ...any) {
-	Print(wrapLogln(Red, "ERROR", value...))
+	Fprint(os.Stderr, wrapLogln(Red, "ERROR", value...))
 }
 
 func RunningInfo(run func() error, value ...any) error {
-	Print(wrapLog(Green, "INFO", value...))
+	Fprint(os.Stdout, wrapLog(Green, "INFO", value...))
 	err := run()
-	Println()
+	Fprint(os.Stdout, '\n')
 	if err != nil {
 		return err
 	}
@@ -138,5 +148,5 @@ func RunningInfo(run func() error, value ...any) error {
 }
 
 func FmtError(v ...any) error {
-	return errors.New(joinValue(v...))
+	return errors.New(build(v...))
 }

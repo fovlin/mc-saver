@@ -64,7 +64,6 @@ func repl() error {
 	}
 
 	record.Info("selected:", "'"+subCmdArgs[0]+"',", "type 'help' for commands, 'exit' to quit repl mode")
-
 	return replLoop(terminal)
 }
 
@@ -147,7 +146,7 @@ func askWorld(terminal *term.Terminal) (err error) {
 			return nil
 
 		case "help":
-			record.Println(askWorldHelpInfo)
+			record.Print(askWorldHelpInfo)
 
 		case "exit":
 			exit()
