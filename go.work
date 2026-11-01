@@ -2,6 +2,7 @@ go 1.27.2
 
 use (
 	./cmd
+	./opt
 	./record
 	./save
 )

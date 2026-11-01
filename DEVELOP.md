@@ -18,7 +18,7 @@ mc-saver
 │   ├── run.go         run command
 │   ├── gencfg.go      gencfg command
 │   ├── list.go        list and list-config commands
-│   ├── dimension.go   the dms command family
+│   ├── dms.go         the dms command family
 │   ├── range.go       the range command family
 │   ├── simple.go      the simple command family
 │   ├── file.go        the file command family
@@ -26,9 +26,10 @@ mc-saver
 ├── save/              backup engine: config loading, world walking, zip writing
 │   ├── save.go        current layout: dimensions/<namespace>/<id>/, plus saveDirInRoot
 │   └── old_save.go    the `-l` layout: DIM-1 / DIM1 dimension roots
-├── record/            logging helpers
+├── opt/               POSIX-style option parser, module acovia.net/opt
+├── record/            logging helpers, plus the terminal (raw mode) flag
 ├── build.sh           cross-compile the release targets
-├── go.work            workspace tying the three modules together
+├── go.work            workspace tying the four modules together
 ├── README.md          user documentation
 └── DEVELOP.md         this file
 ```
@@ -63,7 +64,9 @@ Program will judge weather first argument is path, by judge weather start with `
 
 Program will search command function from map `cmdMap`, if command found in this map, program will execute corresponding function, if not found in map, program will throw a `unknown command` error.
 
-Some commands will read config from `<world>/saver.json` file, program will set config = nil if this file not found. 
+Some commands will read config from `<world>/saver.json` file, program will use `save.NewNullConfig()` if this file not found.
+
+Every command that takes a world starts with `loadWorld(minArgs, usage, replUsage)`: it checks the argument count, resolves the world path with `filepath.Abs` and `fmtPath`, and loads the rule file. `run` uses the same helper, so every command resolves the world the same way.
 
 Program store subcommand arguments in slice `subCmdMap`, subcommand function will read arguments from this slice.
 
@@ -94,6 +97,8 @@ These commands will read config and modify rule with index number, then save con
 Program will init output path with function `initOutputPath` before init writer, if target path is a directory, function will return a path named `<world_name-$time>` under directory.
 
 Program will call `Package()` method of writer to package archive, `Package()` will rename temp file to output path, program will add subfix at after file name and before extention name.
+
+If any step fails, `run` calls `Clear()`, which closes the writer and removes the temp file. `Writer.Close` is idempotent, so `Clear` still works when `Package` has closed the writer before failing.
 
 ### `gencfg` command
 

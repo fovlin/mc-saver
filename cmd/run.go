@@ -2,36 +2,28 @@ package main
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
 )
 
 func run() error {
-	if len(subCmdArgs) < 1 {
-		return usageError("mc-saver run <world> [output]", "run [output]")
+	usage := "mc-saver run <world> [output]"
+	replUsage := "run [output]"
+
+	worldDirPath, _, err := loadWorld(1, usage, replUsage)
+	if err != nil {
+		return err
 	}
 
 	var outputPath = fmtPath(defaultOutputPath)
 
 	if len(subCmdArgs) > 1 {
 		outputPath = fmtPath(subCmdArgs[1])
-	}
-
-	worldDirPath, err := filepath.Abs(subCmdArgs[0])
-	if err != nil {
-		return record.FmtError("load world absolute path:", err)
-	}
-
-	worldDirPath = fmtPath(worldDirPath)
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	err = initWorldConfig(worldDirPath, configFilePath)
-	if err != nil {
-		return record.FmtError("init world config:", err)
 	}
 
 	root, err := os.OpenRoot(worldDirPath)
@@ -74,8 +66,8 @@ func run() error {
 	}()
 
 	if err != nil {
-		if err := writer.Clear(); err != nil {
-			return fmt.Errorf("remove damage file: %w", err)
+		if clearErr := writer.Clear(); clearErr != nil {
+			return errors.Join(err, fmt.Errorf("remove damage file: %w", clearErr))
 		}
 		return err
 	}

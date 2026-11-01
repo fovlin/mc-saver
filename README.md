@@ -44,12 +44,13 @@ mc-saver repl </path/to/world>
 ```bash
 # Enter Repl mode
 root@mc-saver ~$ ./mc-saver repl /tmp/testworld
-[2026-10-08 12:51:28 INFO]: selected: /tmp/testworld
-[2026-10-08 12:51:28 INFO]: type 'help' for commands, 'exit' to quit repl mode
+[INFO]: selected: '/tmp/testworld', type 'help' for commands, 'exit' to quit repl mode
 mc-saver >
 ```
 
-Type any [command](#commands) at the `mc-saver >` prompt. `mc-saver` without arguments enters repl mode too, and asks for a world first (`select <world>`). `select <world>` switches worlds and prints `selected: <world>`; `world` prints the current selection without changing it.
+repl puts the terminal in raw mode for line editing, so it needs a real terminal; piped input is rejected.
+
+Type any [command](#commands) at the `mc-saver >` prompt. `mc-saver` without arguments enters repl mode too, and asks for a world first (`select <world>`). `select <world>` switches worlds and prints `selected: <world>`; `world` prints the current selection without changing it. `Ctrl-D` or `exit` leaves repl mode.
 
 If you wanna more information about how to use `repl` please check the `help` menu by below command :
 
@@ -142,9 +143,12 @@ Indices are 0-based, as printed by the `list*` commands, and refer to the list a
 
 | Flag | Description |
 | --- | --- |
-| `-l` | Back up using the legacy single-folder layout (`DIM-1`/`DIM1`), for worlds from before 1.21.11. Also makes `gencfg` write a legacy-friendly `file` list. |
+| `-l`, `--legacy` | Back up using the legacy single-folder layout (`DIM-1`/`DIM1`), for worlds from before 1.21.11. Also makes `gencfg` write a legacy-friendly `file` list. |
+| `-c`, `--color` | Enable ANSI color output. |
+| `-t`, `--time` | Prepend a timestamp to every log line. |
+| `--help` | Print the help text and exit. |
 
-`-l` is a switch and takes no value. Flags go before the command, so `mc-saver -l run <world>` works and `mc-saver run -l <world>` does not.
+Flags are switches and take no value. Flags go before the command, so `mc-saver -l run <world>` works and `mc-saver run -l <world>` does not.
 
 ## Configuration
 

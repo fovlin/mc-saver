@@ -16,6 +16,7 @@ const (
 )
 
 var (
+	Terminal        bool = false
 	EnableColor     bool = false
 	EnableTimestamp bool = false
 )
@@ -55,7 +56,11 @@ func wrapLog(color int, prefix string, value ...any) string {
 }
 
 func wrapLogln(color int, prefix string, value ...any) string {
-	return fmt.Sprintf("[%v]: %v", wrapHander(color, prefix), fmt.Sprintln(value...))
+	var subfix string
+	if Terminal {
+		subfix = "\r"
+	}
+	return fmt.Sprintf("[%v]: %v%v", wrapHander(color, prefix), fmt.Sprintln(value...), subfix)
 }
 
 func Info(value ...any) {
@@ -83,6 +88,9 @@ func RunningInfo(run func() error, value ...any) error {
 	fmt.Printf("%s", wrapLog(Green, "INFO", value...))
 	err := run()
 	fmt.Print("\n")
+	if Terminal {
+		fmt.Print("\r")
+	}
 	if err != nil {
 		return err
 	}

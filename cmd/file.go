@@ -2,19 +2,16 @@ package main
 
 import (
 	"fmt"
-	"path"
 	"strconv"
 
 	"acovia.net/record"
 )
 
 func listFile() error {
-	if len(subCmdArgs) < 1 {
-		return usageError("mc-saver list-file <world>", "list-file")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver list-file <world>"
+	replUsage := "list-file"
+	_, _, err := loadWorld(1, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -34,12 +31,10 @@ func printFileRules() {
 }
 
 func addFile() error {
-	if len(subCmdArgs) < 2 {
-		return usageError("mc-saver add-file <world> <file_name>...", "add-file <file_name>...")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver add-file <world> <file_name>..."
+	replUsage := "add-file <file_name>..."
+	_, configFilePath, err := loadWorld(2, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -49,12 +44,10 @@ func addFile() error {
 }
 
 func delFile() error {
-	if len(subCmdArgs) < 2 {
-		return usageError("mc-saver del-file <world> <index>...", "del-file <index>...")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver del-file <world> <index>..."
+	replUsage := "del-file <index>..."
+	_, configFilePath, err := loadWorld(2, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -72,12 +65,10 @@ func delFile() error {
 }
 
 func modFile() error {
-	if len(subCmdArgs) < 3 {
-		return usageError("mc-saver mod-file <world> <index> <file_name>", "mod-file <index> <file_name>")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver mod-file <world> <index> <file_name>"
+	replUsage := "mod-file <index> <file_name>"
+	_, configFilePath, err := loadWorld(3, usage, replUsage)
+	if err != nil {
 		return err
 	}
 

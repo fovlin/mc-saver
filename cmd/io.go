@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -20,11 +21,8 @@ func initWriter(archiveOutputPath string) (*Writer, error) {
 
 	err = tempFile.Chmod(0644)
 	if err != nil {
-		closeErr := tempFile.Close()
-		if closeErr != nil {
-			return &Writer{}, record.FmtError("init archive:", err, ">", "close writer", closeErr)
-		}
-		return &Writer{}, record.FmtError("init archive:", err)
+		cleanupErr := errors.Join(tempFile.Close(), os.Remove(tempFile.Name()))
+		return &Writer{}, errors.Join(fmt.Errorf("init archive: %w", err), cleanupErr)
 	}
 
 	zipWriter := zip.NewWriter(tempFile)
@@ -119,7 +117,7 @@ func initOutputPath(outputPath string, archiveName string) (string, error) {
 		return outputPath, nil
 
 	default:
-		return "", record.FmtError("init output path:", err)
+		return "", fmt.Errorf("stat output path: %w", err)
 	}
 }
 
@@ -144,27 +142,29 @@ func (writer *Writer) Package() error {
 }
 
 func (writer *Writer) Close() error {
-	err := writer.ZipWriter.Close()
-	if err != nil {
-		return err
+	if writer.closed {
+		return nil
 	}
+	writer.closed = true
 
-	err = writer.TempFile.Close()
-	if err != nil {
-		return err
-	}
-	return nil
+	return errors.Join(writer.ZipWriter.Close(), writer.TempFile.Close())
 }
 
 func (writer *Writer) Clear() error {
-	err := writer.Close()
-	if err != nil {
-		return record.FmtError("close writer:", err)
+	closeErr := writer.Close()
+
+	removeErr := os.Remove(writer.TempFile.Name())
+	if os.IsNotExist(removeErr) {
+		removeErr = nil
 	}
 
-	err = os.Remove(writer.TempFile.Name())
-	if err != nil {
-		return err
+	switch true {
+	case closeErr != nil && removeErr != nil:
+		return record.FmtError("close writer:", closeErr, ">", "remove temp file:", removeErr)
+	case closeErr != nil:
+		return record.FmtError("close writer:", closeErr)
+	case removeErr != nil:
+		return record.FmtError("remove temp file:", removeErr)
 	}
 
 	return nil

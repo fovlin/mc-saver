@@ -2,17 +2,13 @@ package main
 
 import (
 	"fmt"
-	"path"
 )
 
 func list() error {
-	if len(subCmdArgs) < 1 {
-		return usageError("mc-saver list <world>", "list")
-	}
-
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver list <world>"
+	replUsage := "list"
+	_, _, err := loadWorld(1, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -37,12 +33,10 @@ func list() error {
 }
 
 func listConfig() error {
-	if len(subCmdArgs) < 2 {
-		return usageError("mc-saver list-config <world> <dimension>...", "list-config <dimension>...")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver list-config <world> <dimension>..."
+	replUsage := "list-config <dimension>..."
+	_, _, err := loadWorld(2, usage, replUsage)
+	if err != nil {
 		return err
 	}
 

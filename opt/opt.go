@@ -172,8 +172,8 @@ func scan() error {
 	for _, arg := range os.Args[1:] {
 		switch true {
 		case lastValue != nil && lastValue.NextIsOption():
+			lastValue.SetValue(arg)
 			lastValue = nil
-			args = append(args, arg)
 
 		case strings.HasPrefix(arg, "--") && strings.ContainsRune(arg, '='):
 			fields := strings.SplitN(arg, "=", 2)

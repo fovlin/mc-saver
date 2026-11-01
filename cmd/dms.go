@@ -2,18 +2,15 @@ package main
 
 import (
 	"fmt"
-	"path"
 
 	"acovia.net/record"
 )
 
 func listDms() error {
-	if len(subCmdArgs) < 1 {
-		return usageError("mc-saver list-dms <world>", "list-dms")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver list-dms <world>"
+	replUsage := "list-dms"
+	_, _, err := loadWorld(1, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -28,12 +25,10 @@ func listDms() error {
 }
 
 func addDms() error {
-	if len(subCmdArgs) < 2 {
-		return usageError("mc-saver add-dms <world> <dimension>...", "add-dms <dimension>...")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver add-dms <world> <dimension>..."
+	replUsage := "add-dms <dimension>..."
+	_, configFilePath, err := loadWorld(2, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -49,12 +44,10 @@ func addDms() error {
 }
 
 func delDms() error {
-	if len(subCmdArgs) < 2 {
-		return usageError("mc-saver del-dms <world> <dimension>...", "del-dms <dimension>...")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver del-dms <world> <dimension>..."
+	replUsage := "del-dms <dimension>..."
+	_, configFilePath, err := loadWorld(2, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -70,12 +63,10 @@ func delDms() error {
 }
 
 func modDms() error {
-	if len(subCmdArgs) < 3 {
-		return usageError("mc-saver mod-dms <world> <old_dimension> <new_dimension>", "mod-dms <old_dimension> <new_dimension>")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver mod-dms <world> <old_dimension> <new_dimension>"
+	replUsage := "mod-dms <old_dimension> <new_dimension>"
+	_, configFilePath, err := loadWorld(3, usage, replUsage)
+	if err != nil {
 		return err
 	}
 

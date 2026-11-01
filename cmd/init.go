@@ -2,10 +2,31 @@ package main
 
 import (
 	"os"
+	"path"
+	"path/filepath"
 
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
 )
+
+func loadWorld(minArgs int, usage string, replUsage string) (worldDirPath string, configFilePath string, err error) {
+	if len(subCmdArgs) < minArgs {
+		return "", "", usageError(usage, replUsage)
+	}
+
+	worldDirPath, err = filepath.Abs(subCmdArgs[0])
+	if err != nil {
+		return "", "", record.FmtError("load world absolute path:", err)
+	}
+	worldDirPath = fmtPath(worldDirPath)
+	configFilePath = fmtPath(path.Join(worldDirPath, configFileName))
+
+	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+		return "", "", record.FmtError("init world config:", err)
+	}
+
+	return worldDirPath, configFilePath, nil
+}
 
 func initWorldConfig(worldDirPath string, configFilePath string) error {
 	if err := initWorld(worldDirPath); err != nil {

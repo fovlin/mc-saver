@@ -21,6 +21,7 @@ var (
 	replMode          bool
 	configFileName    string = "saver.json"
 	defaultOutputPath string = "."
+	prompt            string = "mc-saver > "
 
 	defaultDimensionConfig = save.DimensionConfig{
 		Range: []save.RangeConfig{
@@ -56,6 +57,7 @@ type Writer struct {
 	ZipWriter   *zip.Writer
 	TempFile    *os.File
 	ArchivePath string
+	closed      bool
 }
 
 func usageError(argsLine string, replArgsLine string) error {
@@ -152,39 +154,20 @@ func parseCmdArgs(cmd string) []string {
 
 	for _, char := range cmd {
 		switch true {
-		case sinQuo || douQuo:
-			switch true {
-			case escape:
-				str += string(char)
-				escape = !escape
-
-			case char == '\\':
-				escape = true
-
-			case char == '\'':
-				sinQuo = !sinQuo
-
-			case char == '"':
-				douQuo = !douQuo
-
-			default:
-				str += string(char)
-			}
-
 		case escape:
 			escape = false
 			str += string(char)
 
-		case char == '\\':
+		case char == '\\' && !sinQuo:
 			escape = true
 
-		case char == '\'':
+		case char == '\'' && !douQuo:
 			sinQuo = !sinQuo
 
-		case char == '"':
+		case char == '"' && !sinQuo:
 			douQuo = !douQuo
 
-		case char == ' ':
+		case (char == ' ' || char == '\t') && !sinQuo && !douQuo:
 			if len(str) != 0 {
 				result = append(result, str)
 			}

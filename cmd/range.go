@@ -2,19 +2,16 @@ package main
 
 import (
 	"fmt"
-	"path"
 
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
 )
 
 func listRange() error {
-	if len(subCmdArgs) < 2 {
-		return usageError("mc-saver list-range <world> <dimension>...", "list-range <dimension>...")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver list-range <world> <dimension>..."
+	replUsage := "list-range <dimension>..."
+	_, _, err := loadWorld(2, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -40,12 +37,10 @@ func printRangeRules(dimensions []string) error {
 }
 
 func addRange() error {
-	if len(subCmdArgs) < 6 {
-		return usageError("mc-saver add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>", "add-range <dimension> <from_x> <from_y> <to_x> <to_y>")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>"
+	replUsage := "add-range <dimension> <from_x> <from_y> <to_x> <to_y>"
+	_, configFilePath, err := loadWorld(6, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -74,12 +69,10 @@ func addRange() error {
 }
 
 func delRange() error {
-	if len(subCmdArgs) < 3 {
-		return usageError("mc-saver del-range <world> <dimension> <index>...", "del-range <dimension> <index>...")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver del-range <world> <dimension> <index>..."
+	replUsage := "del-range <dimension> <index>..."
+	_, configFilePath, err := loadWorld(3, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -104,12 +97,10 @@ func delRange() error {
 }
 
 func modRange() error {
-	if len(subCmdArgs) < 7 {
-		return usageError("mc-saver mod-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>", "mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver mod-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>"
+	replUsage := "mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>"
+	_, configFilePath, err := loadWorld(7, usage, replUsage)
+	if err != nil {
 		return err
 	}
 

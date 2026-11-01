@@ -2,19 +2,16 @@ package main
 
 import (
 	"fmt"
-	"path"
 
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
 )
 
 func listSimple() error {
-	if len(subCmdArgs) < 2 {
-		return usageError("mc-saver list-simple <world> <dimension>...", "list-simple <dimension>...")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver list-simple <world> <dimension>..."
+	replUsage := "list-simple <dimension>..."
+	_, _, err := loadWorld(2, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -43,12 +40,10 @@ func printSimpleRules(dimensions []string) error {
 }
 
 func addSimple() error {
-	if len(subCmdArgs) < 4 {
-		return usageError("mc-saver add-simple <world> <dimension> <x> <y>", "add-simple <dimension> <x> <y>")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver add-simple <world> <dimension> <x> <y>"
+	replUsage := "add-simple <dimension> <x> <y>"
+	_, configFilePath, err := loadWorld(4, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -71,12 +66,10 @@ func addSimple() error {
 }
 
 func delSimple() error {
-	if len(subCmdArgs) < 3 {
-		return usageError("mc-saver del-simple <world> <dimension> <index>...", "del-simple <dimension> <index>...")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver del-simple <world> <dimension> <index>..."
+	replUsage := "del-simple <dimension> <index>..."
+	_, configFilePath, err := loadWorld(3, usage, replUsage)
+	if err != nil {
 		return err
 	}
 
@@ -101,12 +94,10 @@ func delSimple() error {
 }
 
 func modSimple() error {
-	if len(subCmdArgs) < 5 {
-		return usageError("mc-saver mod-simple <world> <dimension> <index> <x> <y>", "mod-simple <dimension> <index> <x> <y>")
-	}
-	worldDirPath := fmtPath(subCmdArgs[0])
-	configFilePath := fmtPath(path.Join(worldDirPath, configFileName))
-	if err := initWorldConfig(worldDirPath, configFilePath); err != nil {
+	usage := "mc-saver mod-simple <world> <dimension> <index> <x> <y>"
+	replUsage := "mod-simple <dimension> <index> <x> <y>"
+	_, configFilePath, err := loadWorld(5, usage, replUsage)
+	if err != nil {
 		return err
 	}
 

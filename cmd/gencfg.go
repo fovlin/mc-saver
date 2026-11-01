@@ -4,14 +4,17 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"path/filepath"
 
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
 )
 
 func gencfg() error {
+	usage := "mc-saver gencfg <world>"
+	replUsage := "gencfg"
 	if len(subCmdArgs) < 1 {
-		return usageError("mc-saver gencfg <world>", "gencfg")
+		return usageError(usage, replUsage)
 	}
 
 	if useLegacyMode {
@@ -24,8 +27,13 @@ func gencfg() error {
 		}
 	}
 
-	worldDirPath := fmtPath(subCmdArgs[0])
-	err := initWorld(worldDirPath)
+	worldDirPath, err := filepath.Abs(subCmdArgs[0])
+	if err != nil {
+		return record.FmtError("load world absolute path:", err)
+	}
+	worldDirPath = fmtPath(worldDirPath)
+
+	err = initWorld(worldDirPath)
 	if err != nil {
 		return record.FmtError("init world config:", err)
 	}

@@ -98,8 +98,14 @@ options:
 	-l --legacy:
 		legacy world mode, for worlds from before 1.21.11.
 
-	--color:
+	-c --color:
 		enable color output.
+
+	-t --time:
+		prepend a timestamp to every log line.
+
+	--help:
+		print this help text.
 
 `
 
