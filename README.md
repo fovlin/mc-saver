@@ -28,6 +28,7 @@ On the command line, prefix a negative coordinate with `@`, `:` or `=`, as in `@
 ```bash
 mc-saver repl /srv/minecraft/world
 mc-saver /srv/minecraft/world
+mc-saver ./world
 ```
 
 The world is selected once, then every command is typed at the `mc-saver >` prompt without the world argument. `select <world>` switches worlds, `world` prints the current one, `help` lists the commands, `Ctrl-D` or `exit` leaves. Tab completes command names and dimension ids. It needs a real terminal.
