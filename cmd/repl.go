@@ -236,14 +236,15 @@ func loadSecondCandidate(field string) ([]string, error) {
 
 func searchCandidate(candidateList []string, field string) ([]string, int) {
 	var acount int
+	var newCandidateList []string
 	for _, testField := range candidateList {
 		if strings.HasPrefix(testField, field) {
-			candidateList = append(candidateList, testField)
+			newCandidateList = append(newCandidateList, testField)
 			acount++
 		}
 	}
 
-	return candidateList, acount
+	return newCandidateList, acount
 }
 
 func completeFirstArg(fields []string, terminal *term.Terminal) (string, bool) {
