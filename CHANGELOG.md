@@ -23,8 +23,7 @@ All notable changes to mc-saver are documented here. The project follows
     `rm-range`, `rm-simple`, `rm-file`.
   - `mod-dms`, `mod-range`, `mod-simple`, `mod-file` are now `set-dms`,
     `set-range`, `set-simple`, `set-file`.
-- Command arguments are unchanged; only the command names changed. See
-  [Upgrading from 1.x](README.md#upgrading-from-1x) for the full mapping.
+- Command arguments are unchanged; only the command names changed.
 
 ### Added
 
