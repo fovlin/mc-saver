@@ -15,7 +15,7 @@ func run() error {
 	usage := "mc-saver run <world> [output]"
 	replUsage := "run [output]"
 
-	worldDirPath, _, err := loadWorld(1, usage, replUsage)
+	worldDirPath, _, err := loadWorld(usage, replUsage)
 	if err != nil {
 		return err
 	}

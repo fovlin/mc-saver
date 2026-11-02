@@ -5,7 +5,7 @@ import "acovia.net/record"
 func list() error {
 	usage := "mc-saver ls <world>"
 	replUsage := "ls"
-	_, _, err := loadWorld(1, usage, replUsage)
+	_, _, err := loadWorld(usage, replUsage)
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func list() error {
 func listConfig() error {
 	usage := "mc-saver ls-config <world> <dimension>..."
 	replUsage := "ls-config <dimension>..."
-	_, _, err := loadWorld(2, usage, replUsage)
+	_, _, err := loadWorld(usage, replUsage)
 	if err != nil {
 		return err
 	}

@@ -78,7 +78,7 @@ When the first argument looks like a path — it starts with `./` or `/` after `
 
 `main` looks up the command in `cmdMap`; an unknown name is an `unknown command` error. Commands that read a rule file use `save.NewNullConfig()` when `<world>/saver.json` does not exist.
 
-Commands that read or write the rule file start with `loadWorld(minArgs, usage, replUsage)`: it checks the argument count, resolves the world path with `filepath.Abs` and `fmtPath`, and loads the rule file. `run` uses the same helper, so every command resolves the world the same way. `gencfg` and `repl` only validate the world with `initWorld`, because they must not load a rule file.
+Commands that read or write the rule file start with `loadWorld(usage, replUsage)`: it checks the argument count against `cmdInfo[cmd].MinArgsNumber`, resolves the world path with `filepath.Abs` and `fmtPath`, and loads the rule file. `run` uses the same helper, so every command resolves the world the same way. `gencfg` and `repl` only validate the world with `initWorld`, because they must not load a rule file.
 
 Command handlers read their arguments from `subCmdArgs`; they do not receive them as parameters.
 

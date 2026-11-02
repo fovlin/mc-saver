@@ -167,8 +167,13 @@ func isPath(s string) bool {
 	s = strings.ReplaceAll(s, "\\", "/")
 	return strings.HasPrefix(s, "./") || strings.HasPrefix(s, "/")
 }
-func loadWorld(minArgs int, usage string, replUsage string) (worldDirPath string, configFilePath string, err error) {
-	if len(subCmdArgs) < minArgs {
+func loadWorld(usage string, replUsage string) (worldDirPath string, configFilePath string, err error) {
+	command, ok := cmdInfo[cmd]
+	if !ok {
+		return "", "", record.FmtError("unknown command:", cmd)
+	}
+
+	if len(subCmdArgs) < command.MinArgsNumber {
 		return "", "", usageError(usage, replUsage)
 	}
 
