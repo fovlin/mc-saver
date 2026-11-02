@@ -3,6 +3,14 @@
 All notable changes to mc-saver are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## 2.0.1 - 2026-11-02
+
+### Fixed
+
+- Tab completion of dimension ids now honours `-l`. In the legacy layout the
+  three vanilla ids are always offered, and a world without a `dimensions`
+  directory no longer turns completion off.
+
 ## 2.0.0 - 2026-11-02
 
 ### Breaking changes

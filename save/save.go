@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -254,9 +255,18 @@ func NewNullConfig() Config {
 	return Config{Dimension: map[string]DimensionConfig{}}
 }
 
-func NamespaceIDList(worldPath string) ([]string, error) {
+func NamespaceIDList(worldPath string, legacyMode bool) ([]string, error) {
+	var namespaceIDList []string
+
+	if legacyMode {
+		namespaceIDList = append(namespaceIDList, legacyNamespaceIDList...)
+	}
+
 	namespaceDirObjList, err := os.ReadDir(path.Join(worldPath, "dimensions"))
 	if err != nil {
+		if os.IsNotExist(err) && legacyMode {
+			return namespaceIDList, nil
+		}
 		return nil, err
 	}
 
@@ -269,8 +279,6 @@ func NamespaceIDList(worldPath string) ([]string, error) {
 		nameSpaceList = append(nameSpaceList, dirObj.Name())
 	}
 
-	var namespaceIDList []string
-
 	for _, namespace := range nameSpaceList {
 		idDirObjList, err := os.ReadDir(path.Join(worldPath, "dimensions", namespace))
 		if err != nil {
@@ -281,7 +289,13 @@ func NamespaceIDList(worldPath string) ([]string, error) {
 			if !idDirObj.IsDir() {
 				continue
 			}
-			namespaceIDList = append(namespaceIDList, strings.Join([]string{namespace, idDirObj.Name()}, ":"))
+
+			namespaceID := strings.Join([]string{namespace, idDirObj.Name()}, ":")
+			if slices.Contains(namespaceIDList, namespaceID) {
+				continue
+			}
+
+			namespaceIDList = append(namespaceIDList, namespaceID)
 		}
 	}
 

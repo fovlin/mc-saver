@@ -220,7 +220,7 @@ func loadFirstArgCandidate(field string) []string {
 func loadSecondCandidate(field string) ([]string, error) {
 	var candidateList []string
 
-	namespaceIDList, err := save.NamespaceIDList(subCmdArgs[0])
+	namespaceIDList, err := save.NamespaceIDList(subCmdArgs[0], useLegacyMode)
 	if err != nil {
 		return nil, nil
 	}

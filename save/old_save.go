@@ -9,6 +9,14 @@ import (
 	"strings"
 )
 
+var (
+	legacyNamespaceIDList = []string{
+		"minecraft:overworld",
+		"minecraft:the_nether",
+		"minecraft:the_end",
+	}
+)
+
 func SaveOldAllFile(root *os.Root, config Config, zipWriter *zip.Writer, saveFile saveFile) (err error) {
 
 	if err := SaveOldDimensionFile(root, config, zipWriter, saveFile); err != nil {
