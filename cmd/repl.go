@@ -3,7 +3,9 @@ package main
 import (
 	"errors"
 	"io"
+	"opt"
 	"os"
+	"sort"
 	"strings"
 
 	"acovia.net/minecraft/save"
@@ -12,7 +14,7 @@ import (
 )
 
 var replOnlyCmd map[string]func() error
-
+var terminal *term.Terminal
 var restoreTerminal func()
 
 func init() {
@@ -28,7 +30,7 @@ func repl() error {
 	replMode = true
 	record.Terminal = true
 
-	terminal := term.NewTerminal(os.Stdin, prompt)
+	terminal = term.NewTerminal(os.Stdin, prompt)
 
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
@@ -68,6 +70,7 @@ func repl() error {
 }
 
 func replLoop(terminal *term.Terminal) error {
+	terminal.AutoCompleteCallback = completeCallback
 	for {
 		command, err := terminal.ReadLine()
 		if err != nil {
@@ -93,7 +96,7 @@ func replLoop(terminal *term.Terminal) error {
 }
 
 func replExec(line string) error {
-	fields := parseCmdArgs(line)
+	fields := opt.ParseLine(line)
 	if len(fields) == 0 {
 		return nil
 	}
@@ -123,7 +126,7 @@ func askWorld(terminal *term.Terminal) (err error) {
 			return err
 		}
 
-		fields := parseCmdArgs(strings.TrimSpace(command))
+		fields := opt.ParseLine(strings.TrimSpace(command))
 		if len(fields) == 0 {
 			continue
 		}
@@ -182,4 +185,69 @@ func exit() error {
 func selectedWorld() error {
 	record.Info("selected:", "'"+subCmdArgs[0]+"'")
 	return nil
+}
+
+func completeCallback(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
+	if key != '\t' {
+		return "", pos, false
+	}
+
+	fields := opt.ParseLine(line[:pos])
+
+	switch true {
+	case len(fields) == 1:
+		fields[0], newPos, ok = completeFirstArg(fields[0], pos)
+		return fields[0], newPos, ok
+
+	case len(fields) == 2:
+
+	}
+
+	return "", pos, false
+}
+
+func searchFiestCandidate(field string) ([]string, int) {
+	var candidateList []string
+	var acount int
+	for command := range cmdMap {
+		if strings.HasPrefix(command, field) {
+			candidateList = append(candidateList, command)
+			acount++
+		}
+	}
+	return candidateList, acount
+}
+
+func completeFirstArg(field string, pos int) (newField string, newPos int, ok bool) {
+	candidateList, acount := searchFiestCandidate(field)
+
+	if len(candidateList) == 1 {
+		return candidateList[0] + " ", len(candidateList[0] + " "), true
+	}
+
+	if len(candidateList) > 1 {
+		sort.Strings(candidateList)
+
+		var newField string
+		for _, char := range candidateList[0] {
+			newField += string(char)
+			_, newAcount := searchFiestCandidate(newField)
+			if newAcount != acount {
+				break
+			}
+
+			field = newField
+		}
+
+		record.Println()
+		for _, candidate := range candidateList {
+			terminal.Write([]byte("| " + candidate + "\r\n"))
+		}
+	}
+
+	return field, len(field), true
+}
+
+func completeSecondArg(field string, pos int) (newField string, newPos int, ok bool) {
+	return newField, newPos, ok
 }

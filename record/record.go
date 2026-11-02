@@ -57,11 +57,11 @@ func newBuilder(value ...any) *strings.Builder {
 	return &builder
 }
 
-func build(value ...any) string {
+func Build(value ...any) string {
 	return newBuilder(value...).String()
 }
 
-func buildln(value ...any) string {
+func Buildln(value ...any) string {
 	p := newBuilder(value...)
 	p.WriteRune('\n')
 	return p.String()
@@ -93,23 +93,23 @@ func formatString(str string) string {
 }
 
 func wrapLog(color int, prefix string, value ...any) string {
-	return fmt.Sprintf("[%v]: %v", wrapHeader(color, prefix), build(value...))
+	return fmt.Sprintf("[%v]: %v", wrapHeader(color, prefix), Build(value...))
 }
 
 func wrapLogln(color int, prefix string, value ...any) string {
-	return fmt.Sprintf("[%v]: %v", wrapHeader(color, prefix), buildln(value...))
+	return fmt.Sprintf("[%v]: %v", wrapHeader(color, prefix), Buildln(value...))
 }
 
 func Fprint(inout *os.File, value ...any) {
-	fmt.Fprint(inout, formatString(build(value...)))
+	fmt.Fprint(inout, formatString(Build(value...)))
 }
 
 func Print(value ...any) {
-	fmt.Fprint(os.Stdout, formatString(build(value...)))
+	fmt.Fprint(os.Stdout, formatString(Build(value...)))
 }
 
 func Println(value ...any) {
-	fmt.Fprint(os.Stdout, formatString(buildln(value...)))
+	fmt.Fprint(os.Stdout, formatString(Buildln(value...)))
 }
 
 func Printf(format string, value ...any) {
@@ -148,5 +148,5 @@ func RunningInfo(run func() error, value ...any) error {
 }
 
 func FmtError(v ...any) error {
-	return errors.New(build(v...))
+	return errors.New(Build(v...))
 }

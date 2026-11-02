@@ -225,3 +225,41 @@ func scan() error {
 	}
 	return nil
 }
+
+func ParseLine(cmd string) []string {
+	var str string
+	var result []string
+	var escape, sinQuo, douQuo bool
+
+	for _, char := range cmd {
+		switch true {
+		case escape:
+			escape = false
+			str += string(char)
+
+		case char == '\\' && !sinQuo:
+			escape = true
+
+		case char == '\'' && !douQuo:
+			sinQuo = !sinQuo
+
+		case char == '"' && !sinQuo:
+			douQuo = !douQuo
+
+		case char == ' ' || char == '\t' && !sinQuo && !douQuo:
+			if len(str) != 0 {
+				result = append(result, str)
+			}
+			str = ""
+
+		default:
+			str += string(char)
+		}
+	}
+
+	if len(str) != 0 {
+		result = append(result, str)
+	}
+
+	return result
+}
