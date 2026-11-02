@@ -13,24 +13,22 @@ import (
 	"golang.org/x/term"
 )
 
-var replOnlyCmd map[string]func() error
-var terminal *term.Terminal
-var restoreTerminal func()
-
-func init() {
+var (
 	replOnlyCmd = map[string]func() error{
 		"world":  selectedWorld,
 		"select": selectWorld,
 		"help":   replHelp,
 		"exit":   exit,
 	}
-}
+
+	restoreTerminal func()
+)
 
 func repl() error {
 	replMode = true
 	record.Terminal = true
 
-	terminal = term.NewTerminal(os.Stdin, prompt)
+	terminal := term.NewTerminal(os.Stdin, prompt)
 
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
@@ -70,7 +68,7 @@ func repl() error {
 }
 
 func replLoop(terminal *term.Terminal) error {
-	terminal.AutoCompleteCallback = completeCallback
+	terminal.AutoCompleteCallback = newCompleteCallback(terminal)
 	for {
 		command, err := terminal.ReadLine()
 		if err != nil {
@@ -89,7 +87,6 @@ func replLoop(terminal *term.Terminal) error {
 			record.ErrorNoExit(err)
 		}
 
-		// reset var
 		clear(subCmdArgs[1:])
 		config = save.NewNullConfig()
 	}
@@ -187,56 +184,95 @@ func selectedWorld() error {
 	return nil
 }
 
-func completeCallback(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
-	if key != '\t' {
+func newCompleteCallback(terminal *term.Terminal) func(line string, pos int, key rune) (string, int, bool) {
+	return func(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
+		if key != '\t' {
+			return "", pos, false
+		}
+
+		fields := opt.ParseLine(line[:pos])
+
+		switch true {
+		case len(fields) == 1:
+			newLine, ok = completeFirstArg(fields, terminal)
+			return newLine, len(newLine), ok
+
+		case len(fields) == 2:
+			newLine, ok := completeSecondArg(fields, terminal)
+			return newLine, len(newLine), ok
+
+		}
+
 		return "", pos, false
 	}
-
-	fields := opt.ParseLine(line[:pos])
-
-	switch true {
-	case len(fields) == 1:
-		fields[0], newPos, ok = completeFirstArg(fields[0], pos)
-		return fields[0], newPos, ok
-
-	case len(fields) == 2:
-
-	}
-
-	return "", pos, false
 }
 
-func searchFiestCandidate(field string) ([]string, int) {
+func loadFirstArgCandidate(field string) []string {
 	var candidateList []string
-	var acount int
 	for command := range cmdMap {
 		if strings.HasPrefix(command, field) {
 			candidateList = append(candidateList, command)
+		}
+	}
+	return candidateList
+}
+
+func loadSecondCandidate(field string) ([]string, error) {
+	var candidateList []string
+
+	namespaceIDList, err := save.NamespaceIDList(subCmdArgs[0])
+	if err != nil {
+		return nil, nil
+	}
+
+	for _, namespaceID := range namespaceIDList {
+		if strings.HasPrefix(namespaceID, field) {
+			candidateList = append(candidateList, namespaceID)
+		}
+	}
+
+	return candidateList, nil
+}
+
+func searchCandidate(candidateList []string, field string) ([]string, int) {
+	var acount int
+	for _, testField := range candidateList {
+		if strings.HasPrefix(testField, field) {
+			candidateList = append(candidateList, testField)
 			acount++
 		}
 	}
+
 	return candidateList, acount
 }
 
-func completeFirstArg(field string, pos int) (newField string, newPos int, ok bool) {
-	candidateList, acount := searchFiestCandidate(field)
+func completeFirstArg(fields []string, terminal *term.Terminal) (string, bool) {
+	candidateList := loadFirstArgCandidate(fields[0])
 
 	if len(candidateList) == 1 {
-		return candidateList[0] + " ", len(candidateList[0] + " "), true
+		command, ok := cmdInfo[candidateList[0]]
+		if !ok {
+			return "", false
+		}
+
+		switch true {
+		case command.MinArgsNumber > 1:
+			return candidateList[0] + " ", true
+
+		default:
+			return candidateList[0], true
+		}
 	}
 
 	if len(candidateList) > 1 {
 		sort.Strings(candidateList)
 
-		var newField string
-		for _, char := range candidateList[0] {
-			newField += string(char)
-			_, newAcount := searchFiestCandidate(newField)
-			if newAcount != acount {
+		for _, char := range candidateList[0][len(fields[0]):] {
+			_, acount := searchCandidate(candidateList, fields[0]+string(char))
+			if acount != len(candidateList) {
 				break
 			}
-
-			field = newField
+			fields[0] += string(char)
 		}
 
 		record.Println()
@@ -245,9 +281,47 @@ func completeFirstArg(field string, pos int) (newField string, newPos int, ok bo
 		}
 	}
 
-	return field, len(field), true
+	return fields[0], true
 }
 
-func completeSecondArg(field string, pos int) (newField string, newPos int, ok bool) {
-	return newField, newPos, ok
+func completeSecondArg(fields []string, terminal *term.Terminal) (string, bool) {
+	command, ok := cmdInfo[fields[0]]
+	if !ok || !command.NeedDimensionArg {
+		return "", false
+	}
+
+	candidateList, err := loadSecondCandidate(fields[1])
+	if err != nil {
+		return "", false
+	}
+
+	if len(candidateList) == 1 {
+		switch true {
+		case command.MinArgsNumber > 2:
+			return record.Build(fields[0], candidateList[0]) + " ", true
+
+		default:
+			return record.Build(fields[0], candidateList[0]), true
+		}
+	}
+
+	if len(candidateList) > 1 {
+		sort.Strings(candidateList)
+
+		for _, char := range candidateList[0][len(fields[1]):] {
+			_, acount := searchCandidate(candidateList, fields[1]+string(char))
+
+			if acount != len(candidateList) {
+				break
+			}
+			fields[1] += string(char)
+		}
+
+		record.Println()
+		for _, candidate := range candidateList {
+			terminal.Write([]byte("| " + candidate + "\r\n"))
+		}
+	}
+
+	return record.Build(fields[0], fields[1]), true
 }

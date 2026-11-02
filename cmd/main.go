@@ -7,33 +7,22 @@ import (
 	"acovia.net/record"
 )
 
-var cmdMap map[string]func() error
+type CommandObject struct {
+	MinArgsNumber    int
+	NeedDimensionArg bool
+	Function         func() error
+}
 
-func init() {
-	cmdMap = map[string]func() error{
-		"run":         run,
-		"gencfg":      gencfg,
-		"repl":        repl,
-		"help":        help,
-		"about":       about,
-		"list":        list,
-		"list-config": listConfig,
-		"list-dms":    listDms,
-		"add-dms":     addDms,
-		"del-dms":     delDms,
-		"mod-dms":     modDms,
-		"list-range":  listRange,
-		"add-range":   addRange,
-		"del-range":   delRange,
-		"mod-range":   modRange,
-		"list-simple": listSimple,
-		"add-simple":  addSimple,
-		"del-simple":  delSimple,
-		"mod-simple":  modSimple,
-		"list-file":   listFile,
-		"add-file":    addFile,
-		"del-file":    delFile,
-		"mod-file":    modFile,
+var (
+	cmdInfo map[string]CommandObject
+	cmdMap  map[string]func() error
+)
+
+func cmdObject(minArgsNumber int, needDimensionArg bool, function func() error) CommandObject {
+	return CommandObject{
+		MinArgsNumber:    minArgsNumber,
+		NeedDimensionArg: needDimensionArg,
+		Function:         function,
 	}
 }
 
@@ -54,6 +43,37 @@ func main() {
 }
 
 func initProgram() error {
+	cmdInfo = map[string]CommandObject{
+		"run":        cmdObject(1, false, run),
+		"gencfg":     cmdObject(1, false, gencfg),
+		"repl":       cmdObject(0, false, repl),
+		"help":       cmdObject(0, false, help),
+		"about":      cmdObject(0, false, about),
+		"ls":         cmdObject(1, false, list),
+		"ls-config":  cmdObject(2, true, listConfig),
+		"ls-dms":     cmdObject(1, false, listDms),
+		"add-dms":    cmdObject(2, true, addDms),
+		"rm-dms":     cmdObject(2, true, delDms),
+		"set-dms":    cmdObject(3, true, modDms),
+		"ls-range":   cmdObject(2, true, listRange),
+		"add-range":  cmdObject(6, true, addRange),
+		"rm-range":   cmdObject(3, true, delRange),
+		"set-range":  cmdObject(7, true, modRange),
+		"ls-simple":  cmdObject(2, true, listSimple),
+		"add-simple": cmdObject(4, true, addSimple),
+		"rm-simple":  cmdObject(3, true, delSimple),
+		"set-simple": cmdObject(5, true, modSimple),
+		"ls-file":    cmdObject(1, false, listFile),
+		"add-file":   cmdObject(2, false, addFile),
+		"rm-file":    cmdObject(2, false, delFile),
+		"set-file":   cmdObject(3, false, modFile),
+	}
+
+	cmdMap = make(map[string]func() error, len(cmdInfo))
+	for name, command := range cmdInfo {
+		cmdMap[name] = command.Function
+	}
+
 	opt.BoolSwitch(&useLegacyMode, "l", "legacy")
 	opt.BoolSwitch(&record.EnableColor, "c", "color")
 	opt.BoolSwitch(&record.EnableTimestamp, "t", "time")

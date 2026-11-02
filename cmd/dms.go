@@ -5,8 +5,8 @@ import (
 )
 
 func listDms() error {
-	usage := "mc-saver list-dms <world>"
-	replUsage := "list-dms"
+	usage := "mc-saver ls-dms <world>"
+	replUsage := "ls-dms"
 	_, _, err := loadWorld(1, usage, replUsage)
 	if err != nil {
 		return err
@@ -42,8 +42,8 @@ func addDms() error {
 }
 
 func delDms() error {
-	usage := "mc-saver del-dms <world> <dimension>..."
-	replUsage := "del-dms <dimension>..."
+	usage := "mc-saver rm-dms <world> <dimension>..."
+	replUsage := "rm-dms <dimension>..."
 	_, configFilePath, err := loadWorld(2, usage, replUsage)
 	if err != nil {
 		return err
@@ -61,8 +61,8 @@ func delDms() error {
 }
 
 func modDms() error {
-	usage := "mc-saver mod-dms <world> <old_dimension> <new_dimension>"
-	replUsage := "mod-dms <old_dimension> <new_dimension>"
+	usage := "mc-saver set-dms <world> <old_dimension> <new_dimension>"
+	replUsage := "set-dms <old_dimension> <new_dimension>"
 	_, configFilePath, err := loadWorld(3, usage, replUsage)
 	if err != nil {
 		return err

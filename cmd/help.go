@@ -36,61 +36,65 @@ backup command:
 
 config command:
 
-	indices are 0-based, as shown by the list commands. an index outside the
-	list is an error for both the mod and the delete commands.
+	indices are 0-based, as shown by the ls commands. an index outside the
+	list is an error for both the set and the rm commands.
 
-	list <world>
+	on the command line, prefix a negative coordinate with @: write @-3.
+	: and = are also accepted as literal prefixes; the prefix is stripped.
+	in the repl, plain -3 works.
+
+	ls <world>
 		list all dimension rules and file rules.
 
-	list-config <world> <dimension>...
+	ls-config <world> <dimension>...
 		list both range rules and simple rules of a dimension.
 
-	list-dms <world>
+	ls-dms <world>
 		list dimension namespace ids.
 
 	add-dms <world> <dimension>...
 		add a dimension with the default range rule.
 
-	del-dms <world> <dimension>...
+	rm-dms <world> <dimension>...
 		delete a dimension.
 
-	mod-dms <world> <old_dimension> <new_dimension>
+	set-dms <world> <old_dimension> <new_dimension>
 		rename a dimension, keeping its rules.
 
-	list-range <world> <dimension>...
+	ls-range <world> <dimension>...
 		list range rules of a dimension.
 
 	add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>
 		add a range rule to a dimension.
 
-	del-range <world> <dimension> <index>...
+	rm-range <world> <dimension> <index>...
 		delete the range rules of the given indices.
 
-	mod-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>
+	set-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>
 		replace the range rule at the given index.
 
-	list-simple <world> <dimension>...
+	ls-simple <world> <dimension>...
 		list simple rules of a dimension.
 
 	add-simple <world> <dimension> <x> <y>
 		add a simple rule to a dimension.
 
-	del-simple <world> <dimension> <index>...
+	rm-simple <world> <dimension> <index>...
 		delete the simple rules of the given indices.
 
-	mod-simple <world> <dimension> <index> <x> <y>
+	set-simple <world> <dimension> <index> <x> <y>
 		replace the simple rule at the given index.
 
-	list-file <world>
+	ls-file <world>
 		list file rules.
 
 	add-file <world> <name>...
 		add one or more file rules.
 
-	del-file <world> <index>...
+	rm-file <world> <index>...
 		delete the file rules of the given indices.
 
-	mod-file <world> <index> <name>
+	set-file <world> <index> <name>
 		replace the file rule at the given index.
 
 options:
@@ -113,24 +117,24 @@ var replHelpInfo = `repl commands, the selected world is implicit:
 
 	run [output]                back up the selected world
 	gencfg                      write the default rule file
-	list                        list all dimension rules and file rules
-	list-config <dimension>...  list range and simple rules
-	list-dms                    list dimension namespace ids
+	ls                          list all dimension rules and file rules
+	ls-config <dimension>...    list range and simple rules
+	ls-dms                      list dimension namespace ids
 	add-dms <dimension>...      add dimensions with the default range rule
-	del-dms <dimension>...      delete dimensions
-	mod-dms <old> <new>         rename a dimension, keeping its rules
-	list-range <dimension>...   list range rules
+	rm-dms <dimension>...       delete dimensions
+	set-dms <old> <new>         rename a dimension, keeping its rules
+	ls-range <dimension>...     list range rules
 	add-range <dimension> <from_x> <from_y> <to_x> <to_y>
-	del-range <dimension> <index>...
-	mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>
-	list-simple <dimension>...  list simple rules
+	rm-range <dimension> <index>...
+	set-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>
+	ls-simple <dimension>...    list simple rules
 	add-simple <dimension> <x> <y>
-	del-simple <dimension> <index>...
-	mod-simple <dimension> <index> <x> <y>
-	list-file                   list file rules
+	rm-simple <dimension> <index>...
+	set-simple <dimension> <index> <x> <y>
+	ls-file                     list file rules
 	add-file <name>...
-	del-file <index>...
-	mod-file <index> <name>
+	rm-file <index>...
+	set-file <index> <name>
 
 	world                       print the selected world
 	select <world>              switch to another world

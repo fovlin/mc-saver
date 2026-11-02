@@ -3,8 +3,8 @@ package main
 import "acovia.net/record"
 
 func list() error {
-	usage := "mc-saver list <world>"
-	replUsage := "list"
+	usage := "mc-saver ls <world>"
+	replUsage := "ls"
 	_, _, err := loadWorld(1, usage, replUsage)
 	if err != nil {
 		return err
@@ -31,8 +31,8 @@ func list() error {
 }
 
 func listConfig() error {
-	usage := "mc-saver list-config <world> <dimension>..."
-	replUsage := "list-config <dimension>..."
+	usage := "mc-saver ls-config <world> <dimension>..."
+	replUsage := "ls-config <dimension>..."
 	_, _, err := loadWorld(2, usage, replUsage)
 	if err != nil {
 		return err

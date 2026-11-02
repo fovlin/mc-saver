@@ -253,3 +253,37 @@ func saveDirInRoot(zipWriter *zip.Writer, root *os.Root, file string, saveFile s
 func NewNullConfig() Config {
 	return Config{Dimension: map[string]DimensionConfig{}}
 }
+
+func NamespaceIDList(worldPath string) ([]string, error) {
+	namespaceDirObjList, err := os.ReadDir(path.Join(worldPath, "dimensions"))
+	if err != nil {
+		return nil, err
+	}
+
+	var nameSpaceList []string
+	for _, dirObj := range namespaceDirObjList {
+		if !dirObj.IsDir() {
+			continue
+		}
+
+		nameSpaceList = append(nameSpaceList, dirObj.Name())
+	}
+
+	var namespaceIDList []string
+
+	for _, namespace := range nameSpaceList {
+		idDirObjList, err := os.ReadDir(path.Join(worldPath, "dimensions", namespace))
+		if err != nil {
+			return nil, err
+		}
+
+		for _, idDirObj := range idDirObjList {
+			if !idDirObj.IsDir() {
+				continue
+			}
+			namespaceIDList = append(namespaceIDList, strings.Join([]string{namespace, idDirObj.Name()}, ":"))
+		}
+	}
+
+	return namespaceIDList, nil
+}

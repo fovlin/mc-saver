@@ -7,8 +7,8 @@ import (
 )
 
 func listFile() error {
-	usage := "mc-saver list-file <world>"
-	replUsage := "list-file"
+	usage := "mc-saver ls-file <world>"
+	replUsage := "ls-file"
 	_, _, err := loadWorld(1, usage, replUsage)
 	if err != nil {
 		return err
@@ -19,7 +19,6 @@ func listFile() error {
 	return nil
 }
 
-// printFileRules prints the file rules of the loaded config.
 func printFileRules() {
 	if len(config.File) != 0 {
 		record.Printf("file config:\n")
@@ -43,8 +42,8 @@ func addFile() error {
 }
 
 func delFile() error {
-	usage := "mc-saver del-file <world> <index>..."
-	replUsage := "del-file <index>..."
+	usage := "mc-saver rm-file <world> <index>..."
+	replUsage := "rm-file <index>..."
 	_, configFilePath, err := loadWorld(2, usage, replUsage)
 	if err != nil {
 		return err
@@ -64,8 +63,8 @@ func delFile() error {
 }
 
 func modFile() error {
-	usage := "mc-saver mod-file <world> <index> <file_name>"
-	replUsage := "mod-file <index> <file_name>"
+	usage := "mc-saver set-file <world> <index> <file_name>"
+	replUsage := "set-file <index> <file_name>"
 	_, configFilePath, err := loadWorld(3, usage, replUsage)
 	if err != nil {
 		return err

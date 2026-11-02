@@ -7,12 +7,24 @@ A Minecraft world backup tool written in Go. It reads a JSON rule file and packs
 - **Selective backups** — back up only the dimensions and chunks you care about, so archives are smaller and faster than a full copy.
 - **Per-dimension rules** — the overworld, the Nether, the End, and any custom dimension.
 - **Two ways to pick regions** — `range` rectangles, or `simple` for individual regions.
-- **Config managed from the command line** — add, modify, delete and list dimensions, rules and files without hand-editing JSON.
-- **Repl Mode for easy using** - `repl` Start once, enter the command continuously, and enter the world path only once.
+- **Config managed from the command line** — add, modify, remove and list dimensions, rules and files without hand-editing JSON.
+- **REPL mode** — select the world once, then run commands interactively; tab completion covers command names and dimension ids.
 
 ## Install
 
-Download a prebuilt binary from the [Releases](https://github.com/fovlin/mc-saver/releases) page, or build from source — see [DEVELOP.md](DEVELOP.md).
+Download a prebuilt binary from the [Releases](https://github.com/fovlin/mc-saver/releases) page, or build from source — see [DEVELOP.md](DEVELOP.md). Release history lives in [CHANGELOG.md](CHANGELOG.md).
+
+### Upgrading from 1.x
+
+2.0.0 renames the config command families to match their Unix counterparts. The old names were removed, so update scripts before upgrading:
+
+| 1.x | 2.0.0 |
+| --- | --- |
+| `list`, `list-config`, `list-dms`, `list-range`, `list-simple`, `list-file` | `ls`, `ls-config`, `ls-dms`, `ls-range`, `ls-simple`, `ls-file` |
+| `del-dms`, `del-range`, `del-simple`, `del-file` | `rm-dms`, `rm-range`, `rm-simple`, `rm-file` |
+| `mod-dms`, `mod-range`, `mod-simple`, `mod-file` | `set-dms`, `set-range`, `set-simple`, `set-file` |
+
+Only the command names changed; the arguments and the `saver.json` format are unchanged. `ls*` only reads, `rm-*` removes an entry, and `set-*` replaces an entry (`set-dms` renames a dimension).
 
 ## Usage
 
@@ -20,76 +32,74 @@ Download a prebuilt binary from the [Releases](https://github.com/fovlin/mc-save
 mc-saver [-l] [command] <world> [args...]
 ```
 
-Every command takes the world directory as its first argument; the rule file is read from `<world>/saver.json`. Flags, if any, go before the command.
+Every command that operates on a world takes the world directory as its first argument; the rule file is read from `<world>/saver.json`. `help` and `about` take no world, and `repl` takes an optional one. Flags, if any, go before the command.
 
-When the first argument looks like a path — it starts with `./` or `/`, after `\` is normalized to `/` — it is taken as the world and repl mode starts straight away, so `mc-saver /srv/minecraft/world` means the same as `mc-saver repl /srv/minecraft/world`.
+When the first argument looks like a path — it starts with `./` or `/`, after `\` is normalized to `/` — it is taken as the world and REPL mode starts straight away, so `mc-saver /srv/minecraft/world` means the same as `mc-saver repl /srv/minecraft/world`.
 
 ```bash
-mc-saver gencfg /srv/minecraft/world           # write the default rule file
-mc-saver run /srv/minecraft/world backup.zip   # back it up
-mc-saver list-dms /srv/minecraft/world         # inspect the rules
-mc-saver -l run /srv/minecraft/old-world out.zip   # legacy worlds (before 1.21.11)
+mc-saver gencfg /srv/minecraft/world              # write the default rule file
+mc-saver run /srv/minecraft/world backup.zip      # back it up
+mc-saver ls-dms /srv/minecraft/world              # inspect the rules
+mc-saver add-simple /srv/minecraft/world minecraft:overworld @-3 @-3  # negative coords need @
+mc-saver -l run /srv/minecraft/old-world out.zip  # legacy worlds (before 1.21.11)
 ```
 
 A missing rule file is treated as an empty one, so every command works out of the box; the file appears on disk only once a config command or `gencfg` writes it. `gencfg <world>` writes the full default rule file — three dimensions (`overworld`, `the_nether`, `the_end`), each with the `-1,-1` to `0,0` range, plus four root entries (`level.dat`, `data`, `datapacks`, `players`).
 
 ### The `repl` mode
 
-In repl mode the world is chosen once and every following command uses it, so the world path is typed once instead of on every command line.
+In REPL mode the world is chosen once and every following command uses it, so the world path is typed once instead of on every command line.
 
 ```bash
 mc-saver repl </path/to/world>
 ```
 
 ```bash
-# Enter Repl mode
+# Enter REPL mode
 root@mc-saver ~$ ./mc-saver repl /tmp/testworld
 [INFO]: selected: '/tmp/testworld', type 'help' for commands, 'exit' to quit repl mode
 mc-saver >
 ```
 
-repl puts the terminal in raw mode for line editing, so it needs a real terminal; piped input is rejected.
+REPL mode puts the terminal in raw mode for line editing, so it needs a real terminal; piped input is rejected.
 
-Type any [command](#commands) at the `mc-saver >` prompt. `mc-saver` without arguments enters repl mode too, and asks for a world first (`select <world>`). `select <world>` switches worlds and prints `selected: <world>`; `world` prints the current selection without changing it. `Ctrl-D` or `exit` leaves repl mode.
+Type any [command](#commands) at the `mc-saver >` prompt. `mc-saver` without arguments enters REPL mode too, and asks for a world first (`select <world>`). `select <world>` switches worlds and prints `selected: <world>`; `world` prints the current selection without changing it. `Ctrl-D` or `exit` leaves REPL mode. Tab completes command names, and dimension ids while typing a dimension argument.
 
-If you wanna more information about how to use `repl` please check the `help` menu by below command :
+Run `help` inside the REPL for the full command list:
 
-```bash 
+```bash
 mc-saver > help
 repl commands, the selected world is implicit:
 
 	run [output]                back up the selected world
 	gencfg                      write the default rule file
-	list                        list all dimension rules and file rules
-	list-config <dimension>...  list range and simple rules
-	list-dms                    list dimension namespace ids
+	ls                          list all dimension rules and file rules
+	ls-config <dimension>...    list range and simple rules
+	ls-dms                      list dimension namespace ids
 	add-dms <dimension>...      add dimensions with the default range rule
-	del-dms <dimension>...      delete dimensions
-	mod-dms <old> <new>         rename a dimension, keeping its rules
-	list-range <dimension>...   list range rules
+	rm-dms <dimension>...       delete dimensions
+	set-dms <old> <new>         rename a dimension, keeping its rules
+	ls-range <dimension>...     list range rules
 	add-range <dimension> <from_x> <from_y> <to_x> <to_y>
-	del-range <dimension> <index>...
-	mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>
-	list-simple <dimension>...  list simple rules
+	rm-range <dimension> <index>...
+	set-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>
+	ls-simple <dimension>...    list simple rules
 	add-simple <dimension> <x> <y>
-	del-simple <dimension> <index>...
-	mod-simple <dimension> <index> <x> <y>
-	list-file                   list file rules
+	rm-simple <dimension> <index>...
+	set-simple <dimension> <index> <x> <y>
+	ls-file                     list file rules
 	add-file <name>...
-	del-file <index>...
-	mod-file <index> <name>
+	rm-file <index>...
+	set-file <index> <name>
 
 	world                       print the selected world
 	select <world>              switch to another world
 	help                        print this help text
 	about                       print the information and copyright
 	exit                        leave repl mode
-mc-saver > 
+mc-saver >
 
 ```
-
-
-
 
 ### Commands
 
@@ -99,45 +109,49 @@ Backup and utility:
 | --- | --- |
 | `run <world> [output]` | Back up a world. Output defaults to `.`; an existing directory receives `<world>-YYYY-MM-DD.zip`, and any other path is used as the file name. |
 | `gencfg <world>` | Write the default rule file to `<world>/saver.json`. An empty rule file is filled with the defaults; one that already has rules is left alone and reported as an error. |
-| `repl [world]` | Enter interactive repl mode, for `[world]` if it is given. Running `mc-saver` without arguments does the same. |
+| `repl [world]` | Enter interactive REPL mode, for `[world]` if it is given. Running `mc-saver` without arguments does the same. |
 | `help` | Print the built-in usage text. |
 | `about` | Print the name, repository and license. |
 
-The repl adds four commands of its own:
+The REPL adds four commands of its own:
 
 | Command | Description |
 | --- | --- |
 | `world` | Print the selected world. |
 | `select <world>` | Switch to another world; the current one is kept if the new one cannot be loaded. |
-| `help` | Print the shorter repl usage text. |
+| `help` | Print the shorter REPL usage text. |
 | `exit` | Leave repl mode. |
 
-Config commands write the rule file back after they run:
+The config command families:
 
 | Command | Description |
 | --- | --- |
-| `list <world>` | Print every dimension rule, then the file rules. |
-| `list-config <world> <dimension>...` | Print both the range and the simple rules of a dimension. |
-| `list-dms <world>` | Print the dimension ids. |
+| `ls <world>` | Print every dimension rule, then the file rules. |
+| `ls-config <world> <dimension>...` | Print both the range and the simple rules of a dimension. |
+| `ls-dms <world>` | Print the dimension ids. |
 | `add-dms <world> <dimension>...` | Add dimensions with the default range rule (`-1,-1` to `0,0`). |
-| `del-dms <world> <dimension>...` | Delete dimensions. |
-| `mod-dms <world> <old> <new>` | Rename a dimension, keeping its rules. |
-| `list-range <world> <dimension>...` | Print the range rules, with their indices. |
+| `rm-dms <world> <dimension>...` | Delete dimensions. |
+| `set-dms <world> <old> <new>` | Rename a dimension, keeping its rules. |
+| `ls-range <world> <dimension>...` | Print the range rules, with their indices. |
 | `add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>` | Append a rectangular range rule. |
-| `del-range <world> <dimension> <index>...` | Delete the range rules at `<index>...`. |
-| `mod-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>` | Replace the range rule at `<index>`. |
-| `list-simple <world> <dimension>...` | Print the simple rules, with their indices. |
+| `rm-range <world> <dimension> <index>...` | Delete the range rules at `<index>...`. |
+| `set-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>` | Replace the range rule at `<index>`. |
+| `ls-simple <world> <dimension>...` | Print the simple rules, with their indices. |
 | `add-simple <world> <dimension> <x> <y>` | Append a single region. |
-| `del-simple <world> <dimension> <index>...` | Delete the simple rules at `<index>...`. |
-| `mod-simple <world> <dimension> <index> <x> <y>` | Replace the simple rule at `<index>`. |
-| `list-file <world>` | Print the file rules, with their indices. |
+| `rm-simple <world> <dimension> <index>...` | Delete the simple rules at `<index>...`. |
+| `set-simple <world> <dimension> <index> <x> <y>` | Replace the simple rule at `<index>`. |
+| `ls-file <world>` | Print the file rules, with their indices. |
 | `add-file <world> <name>...` | Append one or more file rules. |
-| `del-file <world> <index>...` | Delete the file rules at `<index>...`. |
-| `mod-file <world> <index> <name>` | Replace the file rule at `<index>`. |
+| `rm-file <world> <index>...` | Delete the file rules at `<index>...`. |
+| `set-file <world> <index> <name>` | Replace the file rule at `<index>`. |
 
 A `<dimension>` is a namespace id like `minecraft:overworld`. `add-range` and `add-simple` create the dimension if it does not exist yet; the other dimension commands report an error instead.
 
-Indices are 0-based, as printed by the `list*` commands, and refer to the list as it is before the command runs. An index outside the list is an error; nothing is written in that case.
+The `add-*`, `rm-*` and `set-*` families write the rule file back after they run; `ls-*` only reads it.
+
+On the command line, a negative coordinate must be written with a literal prefix, for example `@-3`, because `-3` would be parsed as an option. `@`, `:` and `=` are accepted; the prefix is stripped before parsing. In the REPL, plain `-3` works because the line parser does not treat it as an option.
+
+Indices are 0-based, as printed by the `ls*` commands, and refer to the list as it is before the command runs. An index outside the list is an error; nothing is written in that case.
 
 ### Flags
 
@@ -148,7 +162,7 @@ Indices are 0-based, as printed by the `list*` commands, and refer to the list a
 | `-t`, `--time` | Prepend a timestamp to every log line. |
 | `--help` | Print the help text and exit. |
 
-Flags are switches and take no value. Flags go before the command, so `mc-saver -l run <world>` works and `mc-saver run -l <world>` does not.
+Flags are switches and take no value. Put them before the command: `mc-saver -l run <world>`.
 
 ## Configuration
 
@@ -216,11 +230,11 @@ Files or folders at the world root. Files are added as-is; folders are walked re
 
 ## Notes
 
-- A missing `<world>/saver.json` counts as an **empty** rule file — no dimension and no file rules. That keeps the `list*` commands usable, and `gencfg <world>` later writes the defaults (it refuses to touch a file that already has rules). The file itself is written only when a config command or `gencfg` runs, so a world can be inspected without leaving anything behind. A backup with no rules produces an archive with nothing in it and still reports success, so watch the archive size.
-- Everything named in the rule file must exist in the world: a configured dimension without its `dimensions/<namespace>/<id>` directory, or a `file` entry that is missing, aborts the whole backup instead of being skipped. That is deliberate — otherwise a typo or a stale rule would silently produce an incomplete archive. Remove what you don't have with `del-dms` / `del-file`.
+- A missing `<world>/saver.json` counts as an **empty** rule file — no dimension and no file rules. That keeps the `ls*` commands usable, and `gencfg <world>` later writes the defaults (it refuses to touch a file that already has rules). The file itself is written only when a config command or `gencfg` runs, so a world can be inspected without leaving anything behind. A backup with no rules produces an archive with nothing in it and still reports success, so watch the archive size.
+- Everything named in the rule file must exist in the world: a configured dimension without its `dimensions/<namespace>/<id>` directory, or a `file` entry that is missing, aborts the whole backup instead of being skipped. That is deliberate — otherwise a typo or a stale rule would silently produce an incomplete archive. Remove what you don't have with `rm-dms` / `rm-file`.
 - Missing *region* files are a different matter: a region that was never generated — or a whole missing `region` directory inside an existing dimension — is skipped with a warning, because that is world content rather than something the rule file declares.
 - A region listed more than once — by overlapping `range` rules, or by a `range` and a `simple` — is added to the archive once per occurrence.
-- Legacy worlds: `gencfg -l <world>` writes a legacy-friendly `file` list (`playerdata` instead of `players`, plus `advancements`). That list also carries `data`, which in `-l` mode is the overworld's own data folder, so its files are stored twice; drop the `data` entry with `del-file` if that matters.
+- Legacy worlds: `gencfg -l <world>` writes a legacy-friendly `file` list (`playerdata` instead of `players`, plus `advancements`). That list also carries `data`, which in `-l` mode is the overworld's own data folder, so its files are stored twice; drop the `data` entry with `rm-file` if that matters.
 - The archive keeps the world directory name as its top-level folder: backing up `/srv/minecraft/world` stores `world/level.dat`, `world/dimensions/...` and so on, so extracting it under the server directory puts the world back in place.
 - Output naming: an existing directory receives `<world>-YYYY-MM-DD.zip`; if that name is taken, `-1`, `-2`, … is appended before the last extension. A path that does not exist is used as the archive file name as-is, and its parent directories are created.
 - Progress lines (`INFO`) go to stdout, while `WARN` and `ERROR` go to stderr, so `mc-saver ... 2>/dev/null` keeps the progress and hides the diagnostics.

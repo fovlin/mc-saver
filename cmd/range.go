@@ -6,8 +6,8 @@ import (
 )
 
 func listRange() error {
-	usage := "mc-saver list-range <world> <dimension>..."
-	replUsage := "list-range <dimension>..."
+	usage := "mc-saver ls-range <world> <dimension>..."
+	replUsage := "ls-range <dimension>..."
 	_, _, err := loadWorld(2, usage, replUsage)
 	if err != nil {
 		return err
@@ -67,8 +67,8 @@ func addRange() error {
 }
 
 func delRange() error {
-	usage := "mc-saver del-range <world> <dimension> <index>..."
-	replUsage := "del-range <dimension> <index>..."
+	usage := "mc-saver rm-range <world> <dimension> <index>..."
+	replUsage := "rm-range <dimension> <index>..."
 	_, configFilePath, err := loadWorld(3, usage, replUsage)
 	if err != nil {
 		return err
@@ -95,8 +95,8 @@ func delRange() error {
 }
 
 func modRange() error {
-	usage := "mc-saver mod-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>"
-	replUsage := "mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>"
+	usage := "mc-saver set-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>"
+	replUsage := "set-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>"
 	_, configFilePath, err := loadWorld(7, usage, replUsage)
 	if err != nil {
 		return err

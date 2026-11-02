@@ -12,6 +12,7 @@ import (
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
 )
+
 var (
 	cmd        string
 	config     save.Config = save.NewNullConfig()
@@ -127,6 +128,26 @@ func deleteSliceElements[T comparable](arr []T, index ...int) ([]T, error) {
 func convertIntArray(array []string) ([]int, error) {
 	var intList []int
 	for _, v := range array {
+		if len(v) == 0 {
+			continue
+		}
+
+		switch true {
+		case v[0] == ':':
+			if len(v) > 1 {
+				v = v[1:]
+			}
+
+		case v[0] == '=':
+			if len(v) > 1 {
+				v = v[1:]
+			}
+
+		case v[0] == '@':
+			if len(v) > 1 {
+				v = v[1:]
+			}
+		}
 		number, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
 			return nil, err
