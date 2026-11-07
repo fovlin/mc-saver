@@ -277,7 +277,7 @@ func loadFirstArgCandidate() []string {
 func loadSecondCandidate() []string {
 	var candidateList []string
 
-	namespaceIDList, err := save.NamespaceIDList(subCmdArgs[0])
+	namespaceIDList, err := save.NamespaceIDList(subCmdArgs[0], useLegacyMode)
 	if err != nil {
 		return nil
 	}

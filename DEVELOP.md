@@ -30,8 +30,8 @@ mc-saver
 ├── build.sh           cross-compile the release targets
 ├── go.work            workspace tying the four modules together
 ├── CHANGELOG.md       release history
-├── README.md          user documentation
-└── DEVELOP.md         this file
+├── README.md          usage documentation
+└── DEVELOP.md         this file, plus behavior notes
 ```
 
 Build and run from the repo root:
@@ -78,7 +78,7 @@ When the first argument looks like a path — it starts with `./` or `/` after `
 
 `main` looks up the command in `cmdMap`; an unknown name is an `unknown command` error. Commands that read a rule file use `save.NewNullConfig()` when `<world>/saver.json` does not exist.
 
-Commands that read or write the rule file start with `loadWorld(minArgs, usage, replUsage)`: it checks the argument count, resolves the world path with `filepath.Abs` and `fmtPath`, and loads the rule file. `run` uses the same helper, so every command resolves the world the same way. `gencfg` and `repl` only validate the world with `initWorld`, because they must not load a rule file.
+Commands that read or write the rule file start with `loadWorld(usage, replUsage)`: it checks the argument count against `cmdInfo[cmd].MinArgsNumber`, resolves the world path with `filepath.Abs` and `fmtPath`, and loads the rule file. `run` uses the same helper, so every command resolves the world the same way. `gencfg` and `repl` only validate the world with `initWorld`, because they must not load a rule file.
 
 Command handlers read their arguments from `subCmdArgs`; they do not receive them as parameters.
 
@@ -119,6 +119,48 @@ Before creating the writer, `run` resolves the output path with `initOutputPath`
 ### `gencfg` command
 
 `gencfg` writes the default rule file when the config is empty or missing, and reports an error when the config already has rules.
+
+## Behavior
+
+This section covers the details a user only needs when something goes wrong; the user-facing usage lives in [README.md](README.md).
+
+### Rule file
+
+A missing `<world>/saver.json` counts as an **empty** rule file — no dimension and no file rules. That keeps the `ls*` commands usable, and `gencfg <world>` later writes the defaults. The file itself is written only when a config command or `gencfg` runs, so a world can be inspected without leaving anything behind. A backup with no rules produces an archive with nothing in it and still reports success, so watch the archive size.
+
+`gencfg <world>` writes three dimensions (`overworld`, `the_nether`, `the_end`), each with the `-1,-1` to `0,0` range, plus four root entries (`level.dat`, `data`, `datapacks`, `players`). It refuses to touch a file that already has rules.
+
+### Config commands
+
+`add-*`, `rm-*` and `set-*` write the rule file back after they run; `ls-*` only reads it. `add-range` and `add-simple` create the dimension if it does not exist yet; the other dimension commands report an error instead.
+
+Indices are 0-based, as printed by the `ls*` commands, and refer to the list as it is before the command runs. An index outside the list is an error; nothing is written in that case.
+
+### Missing world content
+
+Everything named in the rule file must exist in the world: a configured dimension without its `dimensions/<namespace>/<id>` directory, or a `file` entry that is missing, aborts the whole backup instead of being skipped. That is deliberate — otherwise a typo or a stale rule would silently produce an incomplete archive. Remove what you don't have with `rm-dms` / `rm-file`.
+
+Missing *region* files are a different matter: a region that was never generated — or a whole missing `region` directory inside an existing dimension — is skipped with a warning, because that is world content rather than something the rule file declares.
+
+A region listed more than once — by overlapping `range` rules, or by a `range` and a `simple` — is added to the archive once per occurrence.
+
+### Legacy layout
+
+`gencfg -l <world>` writes a legacy-friendly `file` list (`playerdata` instead of `players`, plus `advancements`). That list also carries `data`, which in `-l` mode is the overworld's own data folder, so its files are stored twice; drop the `data` entry with `rm-file` if that matters.
+
+Dimension completion in `-l` mode always offers the three vanilla ids, because they map to `.`, `DIM-1` and `DIM1` instead of a `dimensions/` entry, and a world without a `dimensions` directory is not an error there.
+
+### Archive
+
+The archive keeps the world directory name as its top-level folder: backing up `/srv/minecraft/world` stores `world/level.dat`, `world/dimensions/...` and so on, so extracting it under the server directory puts the world back in place.
+
+Output naming: an existing directory receives `<world>-YYYY-MM-DD.zip`; if that name is taken, `-1`, `-2`, … is appended before the last extension. A path that does not exist is used as the archive file name as-is, and its parent directories are created.
+
+Progress lines (`INFO`) go to stdout, while `WARN` and `ERROR` go to stderr, so `mc-saver ... 2>/dev/null` keeps the progress and hides the diagnostics.
+
+### Symbolic links
+
+Symbolic links are **not supported**. The walk does not follow them, and a link that points at a directory or outside the world aborts the whole backup, as does any other entry the rule file cannot read. A link to a plain file inside the world is stored under the link's name with the target's content. Replace links with real directories, or list the entries you need as `file` rules instead of the folder that contains the link.
 
 ## Release
 

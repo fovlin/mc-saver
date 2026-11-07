@@ -8,7 +8,7 @@ import (
 func listSimple() error {
 	usage := "mc-saver ls-simple <world> <dimension>..."
 	replUsage := "ls-simple <dimension>..."
-	_, _, err := loadWorld(2, usage, replUsage)
+	_, _, err := loadWorld(usage, replUsage)
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func printSimpleRules(dimensions []string) error {
 func addSimple() error {
 	usage := "mc-saver add-simple <world> <dimension> <x> <y>"
 	replUsage := "add-simple <dimension> <x> <y>"
-	_, configFilePath, err := loadWorld(4, usage, replUsage)
+	_, configFilePath, err := loadWorld(usage, replUsage)
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func addSimple() error {
 func delSimple() error {
 	usage := "mc-saver rm-simple <world> <dimension> <index>..."
 	replUsage := "rm-simple <dimension> <index>..."
-	_, configFilePath, err := loadWorld(3, usage, replUsage)
+	_, configFilePath, err := loadWorld(usage, replUsage)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func delSimple() error {
 func modSimple() error {
 	usage := "mc-saver set-simple <world> <dimension> <index> <x> <y>"
 	replUsage := "set-simple <dimension> <index> <x> <y>"
-	_, configFilePath, err := loadWorld(5, usage, replUsage)
+	_, configFilePath, err := loadWorld(usage, replUsage)
 	if err != nil {
 		return err
 	}

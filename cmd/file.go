@@ -9,7 +9,7 @@ import (
 func listFile() error {
 	usage := "mc-saver ls-file <world>"
 	replUsage := "ls-file"
-	_, _, err := loadWorld(1, usage, replUsage)
+	_, _, err := loadWorld(usage, replUsage)
 	if err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func printFileRules() {
 func addFile() error {
 	usage := "mc-saver add-file <world> <file_name>..."
 	replUsage := "add-file <file_name>..."
-	_, configFilePath, err := loadWorld(2, usage, replUsage)
+	_, configFilePath, err := loadWorld(usage, replUsage)
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func addFile() error {
 func delFile() error {
 	usage := "mc-saver rm-file <world> <index>..."
 	replUsage := "rm-file <index>..."
-	_, configFilePath, err := loadWorld(2, usage, replUsage)
+	_, configFilePath, err := loadWorld(usage, replUsage)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func delFile() error {
 func modFile() error {
 	usage := "mc-saver set-file <world> <index> <file_name>"
 	replUsage := "set-file <index> <file_name>"
-	_, configFilePath, err := loadWorld(3, usage, replUsage)
+	_, configFilePath, err := loadWorld(usage, replUsage)
 	if err != nil {
 		return err
 	}
