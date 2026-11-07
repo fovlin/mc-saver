@@ -25,7 +25,7 @@ var (
 )
 
 type Completer struct {
-	Terminal *term.Terminal
+	Terminal       *term.Terminal
 	CandidateLists [][]string
 }
 
