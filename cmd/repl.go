@@ -207,6 +207,7 @@ func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLin
 		return line, pos, false
 	}
 
+	allFields := opt.ParseLine(line)
 	fields := opt.ParseLine(line[:pos])
 	index := len(fields) - 1
 
@@ -231,10 +232,10 @@ func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLin
 
 		switch true {
 		case command.MinArgsNumber > 1:
-			return completer.BuildLine(fields, selectedCandidateList[0], true)
+			return completer.BuildLine(allFields, index, selectedCandidateList[0], true)
 
 		default:
-			return completer.BuildLine(fields, selectedCandidateList[0], false)
+			return completer.BuildLine(allFields, index, selectedCandidateList[0], false)
 		}
 	}
 
@@ -258,10 +259,10 @@ func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLin
 		return line, pos, false
 	}
 
-	return completer.BuildLine(fields, commandField, false)
+	return completer.BuildLine(allFields, index, commandField, false)
 }
 
-func (completer Completer) BuildLine(fields []string, candidate string, nextIsArgs bool) (string, int, bool) {
+func (completer Completer) BuildLine(fields []string, index int, candidate string, nextIsArgs bool) (string, int, bool) {
 	fields[len(fields)-1] = candidate
 	if nextIsArgs {
 		fields[len(fields)-1] += " "
