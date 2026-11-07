@@ -24,6 +24,11 @@ var (
 	restoreTerminal func()
 )
 
+type Completer struct {
+	Terminal *term.Terminal
+	CandidateLists [][]string
+}
+
 func repl() error {
 	replMode = true
 	record.Terminal = true
@@ -68,7 +73,16 @@ func repl() error {
 }
 
 func replLoop(terminal *term.Terminal) error {
-	terminal.AutoCompleteCallback = newCompleteCallback(terminal)
+	var completer = &Completer{
+		CandidateLists: [][]string{
+			loadFirstArgCandidate(),
+			loadSecondCandidate(),
+		},
+	}
+
+	terminal.AutoCompleteCallback = completer.CompleteArgs
+	completer.Terminal = terminal
+
 	for {
 		command, err := terminal.ReadLine()
 		if err != nil {
@@ -184,144 +198,106 @@ func selectedWorld() error {
 	return nil
 }
 
-func newCompleteCallback(terminal *term.Terminal) func(line string, pos int, key rune) (string, int, bool) {
-	return func(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
-		if key != '\t' {
-			return "", pos, false
-		}
-
-		fields := opt.ParseLine(line[:pos])
-
-		switch true {
-		case len(fields) == 1:
-			newLine, ok = completeFirstArg(fields, terminal)
-			return newLine, len(newLine), ok
-
-		case len(fields) == 2:
-			newLine, ok := completeSecondArg(fields, terminal)
-			return newLine, len(newLine), ok
-
-		}
-
-		return "", pos, false
-	}
-}
-
-func loadFirstArgCandidate(field string) []string {
-	var candidateList []string
-	for command := range cmdMap {
-		if strings.HasPrefix(command, field) {
-			candidateList = append(candidateList, command)
-		}
-	}
-	return candidateList
-}
-
-func loadSecondCandidate(field string) ([]string, error) {
-	var candidateList []string
-
-	namespaceIDList, err := save.NamespaceIDList(subCmdArgs[0])
-	if err != nil {
-		return nil, nil
+func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
+	if key != '\t' {
+		return line, pos, false
 	}
 
-	for _, namespaceID := range namespaceIDList {
-		if strings.HasPrefix(namespaceID, field) {
-			candidateList = append(candidateList, namespaceID)
-		}
+	if line == "" {
+		return line, pos, false
 	}
 
-	return candidateList, nil
-}
+	fields := opt.ParseLine(line[:pos])
+	index := len(fields) - 1
+	commandField := fields[index]
+	candidateList := completer.CandidateLists[index]
 
-func searchCandidate(candidateList []string, field string) ([]string, int) {
-	var acount int
-	for _, testField := range candidateList {
-		if strings.HasPrefix(testField, field) {
-			candidateList = append(candidateList, testField)
-			acount++
-		}
+	selectedCandidateList, selectedNumber := searchCandidate(candidateList, commandField)
+
+	if selectedNumber == 0 {
+		return line, pos, false
 	}
 
-	return candidateList, acount
-}
-
-func completeFirstArg(fields []string, terminal *term.Terminal) (string, bool) {
-	candidateList := loadFirstArgCandidate(fields[0])
-
-	if len(candidateList) == 1 {
-		command, ok := cmdInfo[candidateList[0]]
+	if selectedNumber == 1 {
+		command, ok := cmdInfo[selectedCandidateList[0]]
 		if !ok {
-			return "", false
+			return line, pos, false
 		}
 
 		switch true {
 		case command.MinArgsNumber > 1:
-			return candidateList[0] + " ", true
+			return completer.BuildLine(fields, selectedCandidateList[0], true)
 
 		default:
-			return candidateList[0], true
+			return completer.BuildLine(fields, selectedCandidateList[0], false)
 		}
 	}
 
-	if len(candidateList) > 1 {
-		sort.Strings(candidateList)
+	sort.Strings(selectedCandidateList)
 
-		for _, char := range candidateList[0][len(fields[0]):] {
-			_, acount := searchCandidate(candidateList, fields[0]+string(char))
-			if acount != len(candidateList) {
-				break
-			}
-			fields[0] += string(char)
+	var completed bool
+	for _, char := range selectedCandidateList[0][len(commandField):] {
+		_, acount := searchCandidate(selectedCandidateList, commandField+string(char))
+		if acount != selectedNumber {
+			break
 		}
+		commandField += string(char)
+		completed = true
+	}
 
+	if !completed {
 		record.Println()
-		for _, candidate := range candidateList {
-			terminal.Write([]byte("| " + candidate + "\r\n"))
+		for _, candidate := range selectedCandidateList {
+			completer.Terminal.Write([]byte("| " + candidate + "\r\n"))
 		}
+		return line, pos, false
 	}
 
-	return fields[0], true
+	return completer.BuildLine(fields, commandField, false)
 }
 
-func completeSecondArg(fields []string, terminal *term.Terminal) (string, bool) {
-	command, ok := cmdInfo[fields[0]]
-	if !ok || !command.NeedDimensionArg {
-		return "", false
+func (completer Completer) BuildLine(fields []string, candidate string, nextIsArgs bool) (string, int, bool) {
+	fields[len(fields)-1] = candidate
+	if nextIsArgs {
+		fields[len(fields)-1] += " "
 	}
 
-	candidateList, err := loadSecondCandidate(fields[1])
+	newLine := strings.Join(fields, " ")
+	return newLine, len(newLine), true
+}
+
+func loadFirstArgCandidate() []string {
+	var candidateList []string
+	for command := range cmdMap {
+		candidateList = append(candidateList, command)
+	}
+	return candidateList
+}
+
+func loadSecondCandidate() []string {
+	var candidateList []string
+
+	namespaceIDList, err := save.NamespaceIDList(subCmdArgs[0])
 	if err != nil {
-		return "", false
+		return nil
 	}
 
-	if len(candidateList) == 1 {
-		switch true {
-		case command.MinArgsNumber > 2:
-			return record.Build(fields[0], candidateList[0]) + " ", true
+	for _, namespaceID := range namespaceIDList {
+		candidateList = append(candidateList, namespaceID)
+	}
 
-		default:
-			return record.Build(fields[0], candidateList[0]), true
+	return candidateList
+}
+
+func searchCandidate(candidateList []string, field string) ([]string, int) {
+	var acount int
+	var selectedList []string
+	for _, testField := range candidateList {
+		if strings.HasPrefix(testField, field) {
+			selectedList = append(selectedList, testField)
+			acount++
 		}
 	}
 
-	if len(candidateList) > 1 {
-		sort.Strings(candidateList)
-
-		for _, char := range candidateList[0][len(fields[1]):] {
-			_, acount := searchCandidate(candidateList, fields[1]+string(char))
-
-			if acount != len(candidateList) {
-				break
-			}
-			fields[1] += string(char)
-		}
-
-		record.Println()
-		for _, candidate := range candidateList {
-			terminal.Write([]byte("| " + candidate + "\r\n"))
-		}
-	}
-
-	return record.Build(fields[0], fields[1]), true
+	return selectedList, acount
 }
