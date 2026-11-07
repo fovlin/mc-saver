@@ -3,6 +3,18 @@
 All notable changes to mc-saver are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## 2.0.2 - 2026-11-08
+
+### Fixed
+
+- Tab completion no longer drops the text that follows the cursor.
+- Completing a half typed command line no longer panics.
+
+### Changed
+
+- The completer is a struct whose candidate lists are built once, instead of a
+  callback rebuilt on every keystroke.
+
 ## 2.0.1 - 2026-11-02
 
 ### Fixed
