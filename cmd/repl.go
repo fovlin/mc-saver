@@ -209,6 +209,11 @@ func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLin
 
 	fields := opt.ParseLine(line[:pos])
 	index := len(fields) - 1
+
+	if index >= len(completer.CandidateLists) {
+		return line, pos, false
+	}
+
 	commandField := fields[index]
 	candidateList := completer.CandidateLists[index]
 
