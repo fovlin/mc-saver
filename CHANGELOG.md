@@ -3,6 +3,21 @@
 All notable changes to mc-saver are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## 2.0.3 - 2026-11-09
+
+### Fixed
+
+- Completing a dimension id with a single match did nothing: the candidate was
+  looked up in the command table, which never holds an id.
+- Completion rewrote the whole line and moved the cursor to its end. It now
+  replaces only the word under the cursor and keeps the rest, spacing included.
+
+### Changed
+
+- The candidate lists are loaded on every key press instead of once when the
+  prompt starts, so dimensions added during the session can be completed right
+  away.
+
 ## 2.0.2 - 2026-11-08
 
 ### Fixed
