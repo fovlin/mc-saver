@@ -25,8 +25,8 @@ var (
 )
 
 type Completer struct {
-	Terminal       *term.Terminal
-	CandidateLists [][]string
+	Terminal *term.Terminal
+	Loaders  []func(field string) []string
 }
 
 func repl() error {
@@ -74,9 +74,9 @@ func repl() error {
 
 func replLoop(terminal *term.Terminal) error {
 	var completer = &Completer{
-		CandidateLists: [][]string{
-			loadFirstArgCandidate(),
-			loadSecondCandidate(),
+		Loaders: []func(field string) []string{
+			loadFirstArgCandidate,
+			loadSecondCandidate,
 		},
 	}
 
@@ -207,16 +207,15 @@ func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLin
 		return line, pos, false
 	}
 
-	allFields := opt.ParseLine(line)
 	fields := opt.ParseLine(line[:pos])
 	index := len(fields) - 1
 
-	if index >= len(completer.CandidateLists) {
+	if index >= len(completer.Loaders) {
 		return line, pos, false
 	}
 
 	commandField := fields[index]
-	candidateList := completer.CandidateLists[index]
+	candidateList := completer.Loaders[index](fields[0])
 
 	selectedCandidateList, selectedNumber := searchCandidate(candidateList, commandField)
 
@@ -225,6 +224,10 @@ func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLin
 	}
 
 	if selectedNumber == 1 {
+		if index > 0 {
+			return completer.BuildLine(line, pos, selectedCandidateList[0], false)
+		}
+
 		command, ok := cmdInfo[selectedCandidateList[0]]
 		if !ok {
 			return line, pos, false
@@ -232,10 +235,10 @@ func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLin
 
 		switch true {
 		case command.MinArgsNumber > 1:
-			return completer.BuildLine(allFields, index, selectedCandidateList[0], true)
+			return completer.BuildLine(line, pos, selectedCandidateList[0], true)
 
 		default:
-			return completer.BuildLine(allFields, index, selectedCandidateList[0], false)
+			return completer.BuildLine(line, pos, selectedCandidateList[0], false)
 		}
 	}
 
@@ -259,20 +262,26 @@ func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLin
 		return line, pos, false
 	}
 
-	return completer.BuildLine(allFields, index, commandField, false)
+	return completer.BuildLine(line, pos, commandField, false)
 }
 
-func (completer Completer) BuildLine(fields []string, index int, candidate string, nextIsArgs bool) (string, int, bool) {
-	fields[len(fields)-1] = candidate
-	if nextIsArgs {
-		fields[len(fields)-1] += " "
+func (completer Completer) BuildLine(line string, pos int, candidate string, nextIsArgs bool) (string, int, bool) {
+	if pos > len(line) {
+		pos = len(line)
 	}
 
-	newLine := strings.Join(fields, " ")
-	return newLine, len(newLine), true
+	prefix := line[:pos]
+	cut := strings.LastIndexAny(prefix, " \t") + 1
+
+	newPrefix := prefix[:cut] + candidate
+	if nextIsArgs {
+		newPrefix += " "
+	}
+
+	return newPrefix + line[pos:], len(newPrefix), true
 }
 
-func loadFirstArgCandidate() []string {
+func loadFirstArgCandidate(_ string) []string {
 	var candidateList []string
 	for command := range cmdMap {
 		candidateList = append(candidateList, command)
@@ -280,10 +289,10 @@ func loadFirstArgCandidate() []string {
 	return candidateList
 }
 
-func loadSecondCandidate() []string {
+func loadSecondCandidate(field string) []string {
 	var candidateList []string
 
-	namespaceIDList, err := save.NamespaceIDList(subCmdArgs[0], useLegacyMode)
+	namespaceIDList, err := save.NamespaceIDList(field, useLegacyMode)
 	if err != nil {
 		return nil
 	}
