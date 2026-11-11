@@ -207,15 +207,34 @@ func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLin
 		return line, pos, false
 	}
 
-	fields := opt.ParseLine(line[:pos])
-	index := len(fields) - 1
+	if pos > len(line) {
+		pos = len(line)
+	}
 
+	fields := opt.ParseLine(line[:pos])
+	if len(fields) == 0 {
+		return line, pos, false
+	}
+
+	// A trailing blank starts a new, still empty argument. ParseLine drops
+	// empty fields, so add it back before choosing the loader.
+	if pos > 0 && (line[pos-1] == ' ' || line[pos-1] == '\t') {
+		fields = append(fields, "")
+	}
+
+	index := len(fields) - 1
 	if index >= len(completer.Loaders) {
 		return line, pos, false
 	}
 
 	commandField := fields[index]
-	candidateList := completer.Loaders[index](fields[0])
+
+	worldPath := ""
+	if len(subCmdArgs) > 0 {
+		worldPath = subCmdArgs[0]
+	}
+
+	candidateList := completer.Loaders[index](worldPath)
 
 	selectedCandidateList, selectedNumber := searchCandidate(candidateList, commandField)
 
@@ -273,15 +292,24 @@ func (completer Completer) BuildLine(line string, pos int, candidate string, nex
 	prefix := line[:pos]
 	cut := strings.LastIndexAny(prefix, " \t") + 1
 
+	// Replace the whole word under the cursor, not just the part before it.
+	end := pos
+	for end < len(line) && line[end] != ' ' && line[end] != '\t' {
+		end++
+	}
+
 	newPrefix := prefix[:cut] + candidate
 	if nextIsArgs {
 		newPrefix += " "
+		if end < len(line) && (line[end] == ' ' || line[end] == '\t') {
+			end++
+		}
 	}
 
-	return newPrefix + line[pos:], len(newPrefix), true
+	return newPrefix + line[end:], len(newPrefix), true
 }
 
-func loadFirstArgCandidate(_ string) []string {
+func loadFirstArgCandidate(string) []string {
 	var candidateList []string
 	for command := range cmdMap {
 		candidateList = append(candidateList, command)
@@ -289,10 +317,10 @@ func loadFirstArgCandidate(_ string) []string {
 	return candidateList
 }
 
-func loadSecondCandidate(field string) []string {
+func loadSecondCandidate(worldPath string) []string {
 	var candidateList []string
 
-	namespaceIDList, err := save.NamespaceIDList(field, useLegacyMode)
+	namespaceIDList, err := save.NamespaceIDList(worldPath, useLegacyMode)
 	if err != nil {
 		return nil
 	}

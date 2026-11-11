@@ -40,7 +40,7 @@ The world is selected once, then every command is typed at the `mc-saver >` prom
 | `run <world> [output]` | Back up a world. Defaults to `.`. |
 | `gencfg <world>` | Write the default rule file. |
 | `repl [world]` | Enter REPL mode. |
-| `help`, `about` | Print the usage text, or the version and license. |
+| `help`, `about` | Print the usage text, or the name, repository and license. |
 | `ls <world>` | List every dimension rule and file rule. |
 | `ls-config <world> <dimension>...` | List the range and simple rules of a dimension. |
 | `ls-dms <world>` | List the dimension ids. |

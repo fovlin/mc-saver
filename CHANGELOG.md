@@ -3,6 +3,18 @@
 All notable changes to mc-saver are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## 2.0.4 - 2026-11-11
+
+### Fixed
+
+- Dimension completion now reads the selected world instead of the command name.
+- Pressing Tab on a whitespace-only line no longer panics.
+- Pressing Tab after a space now completes the next argument instead of
+  appending the previous command again.
+- Completion in the middle of a word no longer repeats the text after the
+  cursor.
+- Restored the completion regression tests.
+
 ## 2.0.3 - 2026-11-09
 
 ### Fixed
