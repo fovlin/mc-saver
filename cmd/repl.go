@@ -203,28 +203,26 @@ func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLin
 		return line, pos, false
 	}
 
-	if line == "" {
-		return line, pos, false
-	}
-
 	if pos > len(line) {
 		pos = len(line)
 	}
 
 	fields := opt.ParseLine(line[:pos])
-	if len(fields) == 0 {
-		return line, pos, false
-	}
 
-	// A trailing blank starts a new, still empty argument. ParseLine drops
-	// empty fields, so add it back before choosing the loader.
-	if pos > 0 && (line[pos-1] == ' ' || line[pos-1] == '\t') {
+	if len(fields) == 0 || line[pos-1] == ' ' || line[pos-1] == '\t' {
 		fields = append(fields, "")
 	}
 
 	index := len(fields) - 1
 	if index >= len(completer.Loaders) {
 		return line, pos, false
+	}
+
+	if index > 0 {
+		command, ok := cmdInfo[fields[0]]
+		if !ok || !command.NeedDimensionArg {
+			return line, pos, false
+		}
 	}
 
 	commandField := fields[index]
@@ -243,17 +241,23 @@ func (completer *Completer) CompleteArgs(line string, pos int, key rune) (newLin
 	}
 
 	if selectedNumber == 1 {
-		if index > 0 {
-			return completer.BuildLine(line, pos, selectedCandidateList[0], false)
-		}
 
-		command, ok := cmdInfo[selectedCandidateList[0]]
-		if !ok {
-			return line, pos, false
+		var command CommandObject
+
+		if index == 0 {
+			command, ok = cmdInfo[selectedCandidateList[0]]
+			if !ok {
+				return line, pos, false
+			}
+		} else {
+			command, ok = cmdInfo[fields[0]]
+			if !ok {
+				return line, pos, false
+			}
 		}
 
 		switch true {
-		case command.MinArgsNumber > 1:
+		case command.MinArgsNumber > index+1:
 			return completer.BuildLine(line, pos, selectedCandidateList[0], true)
 
 		default:
@@ -292,7 +296,6 @@ func (completer Completer) BuildLine(line string, pos int, candidate string, nex
 	prefix := line[:pos]
 	cut := strings.LastIndexAny(prefix, " \t") + 1
 
-	// Replace the whole word under the cursor, not just the part before it.
 	end := pos
 	for end < len(line) && line[end] != ' ' && line[end] != '\t' {
 		end++
@@ -335,6 +338,10 @@ func loadSecondCandidate(worldPath string) []string {
 func searchCandidate(candidateList []string, field string) ([]string, int) {
 	var acount int
 	var selectedList []string
+	if field == "" {
+		return candidateList, len(candidateList)
+	}
+
 	for _, testField := range candidateList {
 		if strings.HasPrefix(testField, field) {
 			selectedList = append(selectedList, testField)

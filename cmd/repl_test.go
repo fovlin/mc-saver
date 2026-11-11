@@ -116,13 +116,13 @@ func TestCompleteArgsAfterTrailingSpace(t *testing.T) {
 
 	subCmdArgs = []string{"/tmp/world"}
 	cmdInfo = map[string]CommandObject{
-		"ls-dms": cmdObject(1, false, nil),
+		"ls-range": cmdObject(2, true, nil),
 	}
 
 	var loadedWorldPath string
 	completer := &Completer{
 		Loaders: []func(string) []string{
-			func(string) []string { return []string{"ls-dms"} },
+			func(string) []string { return []string{"ls-range"} },
 			func(worldPath string) []string {
 				loadedWorldPath = worldPath
 				return []string{"minecraft:overworld", "minecraft:the_nether"}
@@ -130,18 +130,46 @@ func TestCompleteArgsAfterTrailingSpace(t *testing.T) {
 		},
 	}
 
-	line, pos, ok := completer.CompleteArgs("ls-dms ", len("ls-dms "), '\t')
+	line, pos, ok := completer.CompleteArgs("ls-range ", len("ls-range "), '\t')
 	if !ok {
 		t.Fatal("CompleteArgs returned ok=false")
 	}
-	if line != "ls-dms minecraft:" {
-		t.Fatalf("line: got %q, want %q", line, "ls-dms minecraft:")
+	if line != "ls-range minecraft:" {
+		t.Fatalf("line: got %q, want %q", line, "ls-range minecraft:")
 	}
-	if pos != len("ls-dms minecraft:") {
-		t.Fatalf("cursor: got %d, want %d", pos, len("ls-dms minecraft:"))
+	if pos != len("ls-range minecraft:") {
+		t.Fatalf("cursor: got %d, want %d", pos, len("ls-range minecraft:"))
 	}
 	if loadedWorldPath != "/tmp/world" {
 		t.Fatalf("loader world: got %q, want %q", loadedWorldPath, "/tmp/world")
+	}
+}
+
+func TestCompleteArgsSkipsDimensionForNonDimensionCommand(t *testing.T) {
+	restore := saveCompletionState(t)
+	defer restore()
+
+	subCmdArgs = []string{"/tmp/world"}
+	cmdInfo = map[string]CommandObject{
+		"run": cmdObject(1, false, nil),
+	}
+
+	secondLoaderCalled := false
+	completer := &Completer{
+		Loaders: []func(string) []string{
+			func(string) []string { return []string{"run"} },
+			func(string) []string {
+				secondLoaderCalled = true
+				return []string{"minecraft:overworld"}
+			},
+		},
+	}
+
+	if _, _, ok := completer.CompleteArgs("run ", len("run "), '\t'); ok {
+		t.Fatal("CompleteArgs completed a dimension for run")
+	}
+	if secondLoaderCalled {
+		t.Fatal("dimension loader was called for run")
 	}
 }
 
